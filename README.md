@@ -2,7 +2,7 @@
 
 This project is a summary of ALX Software engineering back-end trimester: authentication, NodeJS, MongoDB, Redis, pagination and background processing.
 
-- The objective of this project
+## The objective of this project
  - User authentication via a token
  - List all Files
  - Upload a new file
