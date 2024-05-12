@@ -1,5 +1,6 @@
 const sha1 = require('sha1');
 const dbClient = require('../utils/db');
+const redisClient = require('../utils/redis');
 
 const UsersController = {
   async postNew(req, res) {
@@ -41,7 +42,7 @@ const UsersController = {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    res.status(200).json({ id: user._id, email: user.email });
+    return res.status(200).json({ id: user._id, email: user.email });
   },
 
 };

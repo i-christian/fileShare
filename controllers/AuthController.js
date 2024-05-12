@@ -22,7 +22,7 @@ const AuthController = {
     const token = uuidv4();
     const key = `auth_${token}`;
     await redisClient.set(key, user._id, 86400); // 24 hours expiration
-    res.status(200).json({ token });
+    return res.status(200).json({ token });
   },
 
   async getDisconnect(req, res) {
@@ -38,8 +38,8 @@ const AuthController = {
     }
 
     await redisClient.del(key);
-    res.status(204).send();
-  }
+    return res.status(204).send();
+  },
 };
 
 module.exports = AuthController;
