@@ -24,6 +24,26 @@ const UsersController = {
 
     return res.status(201).json({ id: _id, email: userEmail });
   },
+
+  async getMe(req, res) {
+    const token = req.header('X-Token');
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await dbClient.getUserById(userId);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    res.status(200).json({ id: user._id, email: user.email });
+  },
+
 };
 
 module.exports = UsersController;
