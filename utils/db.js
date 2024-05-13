@@ -45,6 +45,13 @@ class DBClient {
     return usersCollection.findOne({ email });
   }
 
+  // Inside the DBClient class definition
+  async getUserById(userId) {
+    const db = this.client.db();
+    const usersCollection = db.collection('users');
+    return usersCollection.findOne({ _id: userId });
+  }
+
   // Get the number of documents in the files collection
   async nbFiles() {
     const db = this.client.db();
