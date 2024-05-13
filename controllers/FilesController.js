@@ -6,6 +6,12 @@ const redisClient = require('../utils/redis');
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
+const createDirectoryIfNeeded = (folderPath) => {
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+};
+
 const FilesController = {
   async postUpload(req, res) {
     const token = req.header('X-Token');
@@ -56,6 +62,8 @@ const FilesController = {
       const fileData = Buffer.from(data, 'base64');
       const fileId = uuid.v4();
       const localPath = path.join(FOLDER_PATH, fileId);
+
+      createDirectoryIfNeeded(FOLDER_PATH);
 
       try {
         fs.writeFileSync(localPath, fileData);

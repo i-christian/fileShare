@@ -58,6 +58,18 @@ class DBClient {
     const filesCollection = db.collection('files');
     return filesCollection.countDocuments();
   }
+
+  async createFile(file) {
+    try {
+      const db = this.client.db();
+      const filesCollection = db.collection('files');
+      const result = await filesCollection.insertOne(file);
+      return result.ops[0]; // Return the newly created file
+    } catch (error) {
+      console.error('Error creating file:', error);
+      throw error; // Propagate the error
+    }
+  }
 }
 
 // Create and export an instance of DBClient called dbClient
