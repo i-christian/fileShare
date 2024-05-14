@@ -59,13 +59,21 @@ const FilesController = {
     };
 
     if (type !== 'folder') {
-      const fileData = Buffer.from(data, 'base64');
+      // Check if the data is a base64 encoded string
+      if (!data.startsWith('data:image')) {
+        return res.status(400).json({ error: 'Invalid image data' });
+      }
+
+      // Extract the base64 encoded data
+      const imageData = data.replace(/^data:image\/\w+;base64,/, '');
+      const fileData = Buffer.from(imageData, 'base64');
       const fileId = uuid.v4();
       const localPath = path.join(FOLDER_PATH, fileId);
 
       createDirectoryIfNeeded(FOLDER_PATH);
 
       try {
+        // Write the file data to the local path
         fs.writeFileSync(localPath, fileData);
         file.localPath = localPath;
       } catch (err) {
@@ -75,6 +83,7 @@ const FilesController = {
     }
 
     try {
+      // Attempt to create a file in the database
       const newFile = await dbClient.createFile(file);
       return res.status(201).json(newFile);
     } catch (err) {
