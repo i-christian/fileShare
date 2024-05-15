@@ -1,12 +1,12 @@
 import express from 'express';
-import startServer from './libs/boot';
-import injectRoutes from './routes';
-import injectMiddlewares from './libs/middlewares';
+import start_server from './libs/boot';
+import inject_routes from './routes';
+import inject_middlewares from './libs/middlewares';
 
 const server = express();
 
-injectMiddlewares(server);
-injectRoutes(server);
-startServer(server);
+inject_middlewares(server);
+inject_routes(server);
+start_server(server);
 
 export default server;
