@@ -6,10 +6,7 @@ The primary goal is to demonstrate proficiency in building production-ready web 
 
 -----
 
-## \#\# ✨ Standout Features
-
-To elevate this project beyond a standard CRUD application, GoFile includes several advanced features:
-
+## \#\# ✨ Features:
   * **Chunked File Uploads & Resumability**: Large files are broken into smaller chunks, allowing for reliable uploads over unstable connections and the ability to resume interrupted uploads.
   * **Real-time Progress**: The frontend provides real-time feedback on upload progress and thumbnail generation without needing to refresh the page.
   * **Secure, Shareable Links**: Users can generate secure, time-sensitive links to share files with others, with options for password protection.
