@@ -1,75 +1,92 @@
-# Files Manager
+# fileShare: A Modern, Full-Stack File Management System
 
-This project encapsulates the core concepts covered in the ALX Software Engineering back-end trimester, including authentication, NodeJS, MongoDB, Redis, pagination, and background processing.
+fileShare is a full-stack file management system built with Go, featuring secure authentication, file uploads, permissions control, and server-side rendered HTML.
 
-## Objectives
+The primary goal is to demonstrate proficiency in building production-ready web applications with Go, incorporating best practices in software architecture, concurrency, and maintainability.
 
-The primary objectives of this project are:
+-----
 
-1. **User Authentication via Token**: Implement a secure authentication mechanism using tokens to authenticate users.
-2. **List All Files**: Provide an endpoint to list all files available on the platform.
-3. **Upload a New File**: Allow users to upload new files to the platform.
-4. **Change Permission of a File**: Enable users to modify permissions associated with specific files.
-5. **View a File**: Implement functionality to view files stored on the platform.
-6. **Generate Thumbnails for Images**: Automatically generate thumbnails for image files to enhance user experience.
+## \#\# ✨ Standout Features
 
-## Project Structure
+To elevate this project beyond a standard CRUD application, GoFile includes several advanced features:
 
-The project will be structured to facilitate modularity and maintainability. Key components will be split into separate files and organized within a 'utils' folder. The project structure will adhere to best practices in software development.
+  * **Chunked File Uploads & Resumability**: Large files are broken into smaller chunks, allowing for reliable uploads over unstable connections and the ability to resume interrupted uploads.
+  * **Real-time Progress**: The frontend provides real-time feedback on upload progress and thumbnail generation without needing to refresh the page.
+  * **Secure, Shareable Links**: Users can generate secure, time-sensitive links to share files with others, with options for password protection.
+  * **Advanced Search & Filtering**: A powerful search functionality allows users to find files by name, type, and date, with advanced filtering options.
+  * **Comprehensive API Documentation**: The API is fully documented using Swagger/OpenAPI, making it easy to understand and test.
+  * **Containerized Deployment**: The entire application stack (Go, PostgreSQL, Redis) can be spun up with a single command using Docker Compose, ensuring a consistent development and deployment environment.
 
-## Technologies and Tools
+-----
 
-The project will leverage the following technologies and tools:
+## \#\# 🏛️ System Architecture
 
-- **Node.js**: For server-side JavaScript execution.
-- **Express**: To build the API endpoints and handle HTTP requests.
-- **MongoDB**: For persistent data storage.
-- **Redis**: For caching and temporary data storage.
-- **Bull**: To set up and utilize background processing for asynchronous tasks.
-- **Mocha**: For testing.
-- **Nodemon**: To monitor changes in the file system and automatically restart the server.
-- **Image thumbnail**: To generate thumbnails for image files.
-- **Mime-Types**: To handle MIME types of files.
+fileShare is designed as a monolithic application with a clear separation of concerns, making it both cohesive and maintainable. The system leverages a server-side rendering (SSR) approach with HTMX for a responsive, single-page-app feel without the complexity of a client-side JavaScript framework.
 
-## Learning Objectives
+### High-Level Diagram
 
-By completing this project, participants will gain proficiency in the following areas:
+```mermaid
+graph TD
+    subgraph Client
+        A[Browser]
+    end
 
-1. **Creating an API with Express**: Understand the fundamentals of building RESTful APIs using Express.js.
-2. **Authentication Implementation**: Learn how to implement user authentication using tokens for secure access.
-3. **Data Storage with MongoDB**: Acquire knowledge on storing and retrieving data from MongoDB databases.
-4. **Temporary Data Storage with Redis**: Explore the usage of Redis for caching and temporary data storage.
-5. **Background Worker Setup and Usage**: Understand the setup and utilization of background workers for executing tasks asynchronously.
+    subgraph Server
+        B(Go Backend - Chi Router)
+        C{Auth Middleware - Sessions}
+        D[API Handlers]
+        E[HTML Templating - Templ]
+        F[Background Worker]
+    end
 
-## Requirements
+    subgraph Data & Services
+        G(PostgreSQL Database)
+        H(Redis Cache & Job Queue)
+        I(File Storage - Local/S3)
+    end
 
-- **Editors**: Allowed editors include vi, vim, emacs, Visual Studio Code.
-- **Environment**: All files will be interpreted/compiled on Ubuntu 18.04 LTS using Node.js (version 12.x.x).
-- **File Format**: All files should end with a new line and use the `.js` extension.
-- **README.md**: A README.md file, at the root of the project folder, is mandatory and should contain project details and instructions.
-- **Code Quality**: Code should adhere to linting rules using ESLint.
+    A -- HTTP Requests (HTMX) --> B
+    B -- Authenticate --> C
+    C -- Validated --> D
+    B -- Render UI --> E
+    E --> A
+    D -- CRUD --> G
+    D -- Cache/Session --> H
+    D -- File I/O --> I
+    D -- Enqueue Job --> H
+    F -- Dequeue Job --> H
+    F -- Process Image --> I
+```
 
-## Setup Instructions
+### Architectural Breakdown
 
-To set up the project, follow these steps:
+1.  **Client**: The user interacts with a web interface built with standard HTML/CSS. The `Templ` library generates HTML on the server, and `HTMX` is used to fetch partial HTML updates, creating a dynamic user experience.
+2.  **Go Backend**: A robust server built with `Go`. The `Chi` router handles incoming HTTP requests, directing them through middleware and to the appropriate handlers.
+3.  **Authentication**: Private, encrypted session cookies (signed & AES-encrypted) with HTTPS-only, Secure flags.
+4.  **Database**: **PostgreSQL** serves as the primary data store for user information, file metadata, and sharing permissions. It was chosen for its reliability and rich feature set.
+5.  **Cache & Job Queue**: **Redis** is used for two key purposes: caching session data for faster lookups and serving as a simple message broker for background jobs like thumbnail generation.
+6.  **Background Worker**: A concurrent Go routine acts as a background worker. It listens for jobs (e.g., "generate thumbnail for image X") from the Redis queue and processes them asynchronously, preventing long-running tasks from blocking the main request-response cycle.
+7.  **File Storage**: Files can be stored on the local filesystem or configured to use a cloud object storage service like AWS S3 for better scalability and durability.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/i-christian/alx-files_manager.git
-   ```
-2. Navigate to the directory
-   ```
-   cd alx-files_manager
-   ```
-3. Install dependencies
-    ```
-    npm install
-    ```
-4. Run the development server
-    ```
-    npm run dev
-    ```
-5. Alternatively, to start the production server
-    ```
-    npm run start-server
-    ```
+-----
+
+## \#\# 🛠️ Technology Stack
+
+This project leverages a modern, efficient, and scalable tech stack centered around Go.
+
+| Component | Technology | Rationale |
+| :--- | :--- | :--- |
+| **Backend** | **Go (Golang)** with **Chi** | For its performance, concurrency model, and strong typing. Chi is a lightweight and idiomatic router. |
+| **Frontend** | **Templ + HTMX + Tailwind CSS** | For creating type-safe HTML templates in Go and building dynamic interfaces without heavy JavaScript. |
+| **Database** | **PostgreSQL** | A powerful, open-source relational database known for its robustness and data integrity. |
+| **Caching/Queue** | **Redis** | A fast, in-memory data store perfect for session management and as a simple message queue. |
+| **Testing** | **Go's built-in testing package** | For unit and integration tests to ensure code quality and reliability. |
+| **Containerization** | **Docker & Docker Compose**| To create a reproducible development and production environment. |
+
+-----
+## Development Workflow
+
+For instructions on how to get started with this application, please refer to the [Development Documentation](/development.md).
+
+This documentation provides instructions on how to set up your environment and develop the application.
+
