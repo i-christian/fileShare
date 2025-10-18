@@ -8,6 +8,12 @@ These instructions will get you a copy of the project up and running on your loc
 * PostgreSQL 18+
 
 ## Local development setup
+### 1️⃣ Clone
+
+```bash
+git clone https://github.com/i-christian/fileShare.git
+```
+
 The application has some environment variable. To use the example configuration, make sure to:
 #### copy `.env_example` to `.env`
 - On the project root
@@ -47,7 +53,7 @@ Set up postgresql as follows:
 #### Migrations
 The application does apply database migration automatically using embedded migration logic.
   - ```
-    cd storage/dbstore/schema/
+    cd internal/db/schema/
     ```
 Add SQL tables to migration files eg `001_user.sql` && run to create the defined tables: 
   - ```
@@ -60,7 +66,7 @@ This can be reversed using:
   ```
 
 ## Secret key hash generation
-- Run the following command to generate the `RANDOM_HEX`
+- Run the following command to generate the `JWT_SECRET`
 ```
   openssl rand -hex 32
 ```
