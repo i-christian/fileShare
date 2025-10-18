@@ -1,4 +1,3 @@
-````markdown
 # 📁 fileShare API — Modern File Management Backend
 
 fileShare API is a **production-grade backend service** built with **Go**, providing secure, scalable, and performant file management.  
