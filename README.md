@@ -27,7 +27,7 @@ flowchart LR
         A[Web / Mobile / CLI]
     end
 
-    subgraph API Server (Go)
+    subgraph API Server
         B[Chi Router + JSON Handlers]
         C[JWT Middleware]
         D[Rate Limiter]
