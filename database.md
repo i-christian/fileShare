@@ -1,9 +1,12 @@
 ## 🧱 Database Schema (PostgreSQL)
 
 ```sql
+-- Types
+CREATE TYPE upload_status AS ENUM ('pending', 'completed', 'failed')
+
 -- Users table: Stores user account information
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid7(),
     username VARCHAR(100) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -13,7 +16,7 @@ CREATE TABLE users (
 
 -- API Keys table: Allows users to generate keys for programmatic access
 CREATE TABLE api_keys (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid7(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     key_hash VARCHAR(255) NOT NULL UNIQUE,
     prefix VARCHAR(16) NOT NULL UNIQUE,
@@ -23,14 +26,12 @@ CREATE TABLE api_keys (
 
 -- Files table: Stores metadata for each uploaded file
 CREATE TABLE files (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid7(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     storage_key TEXT NOT NULL UNIQUE,
     mime_type VARCHAR(100) NOT NULL,
     size_bytes BIGINT NOT NULL,
-    upload_status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (upload_status IN ('pending', 'completed', 'failed')),
     thumbnail_key TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -38,7 +39,7 @@ CREATE TABLE files (
 
 -- Share Links table: Manages secure, time-sensitive, and protected links
 CREATE TABLE share_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid7(),
     file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
     created_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
@@ -49,15 +50,13 @@ CREATE TABLE share_links (
 );
 
 CREATE TABLE upload_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid7(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
 
     file_name TEXT NOT NULL,
     total_chunks INT NOT NULL,
     uploaded_chunks INT DEFAULT 0,
-    status TEXT DEFAULT 'in_progress'
-        CHECK (status IN ('in_progress', 'completed', 'failed')),
-
+    status TEXT DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
