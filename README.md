@@ -22,7 +22,7 @@ It exposes a **RESTful JSON API** that handles authentication, file uploads, sha
 ## 🏗️ Architecture Overview
 
 ```mermaid
-graph TD
+flowchart LR
     subgraph Clients
         A[Web / Mobile / CLI]
     end
