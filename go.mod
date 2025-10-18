@@ -1,4 +1,4 @@
-module fileShare
+module github.com/i-christian/fileShare
 
 go 1.25.0
 
