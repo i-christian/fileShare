@@ -18,6 +18,26 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+--  Email verification tokens
+CREATE TABLE email_verification_tokens (
+    token_id    UUID PRIMARY KEY DEFAULT uuidv7(),
+    user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    token       VARCHAR(255) UNIQUE NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used        BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+--  Password reset tokens
+CREATE TABLE password_reset_tokens (
+    token_id    UUID PRIMARY KEY DEFAULT uuidv7(),
+    user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    token       VARCHAR(255) UNIQUE NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used        BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 -- API Keys table: Allows users to generate keys for programmatic access
 CREATE TABLE api_keys (
     id UUID PRIMARY KEY DEFAULT uuid7(),
@@ -68,6 +88,8 @@ CREATE TABLE upload_sessions (
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_visibility ON files(visibility);
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
