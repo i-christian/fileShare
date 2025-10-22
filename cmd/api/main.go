@@ -66,9 +66,10 @@ func main() {
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
 	domain := utils.GetEnvOrFile("DOMAIN")
 
+	router := registerRoutes(domain)
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
-		Handler:      nil, // TODO: add router here
+		Handler:      router,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 40 * time.Second,
