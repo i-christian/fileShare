@@ -100,7 +100,7 @@ fileShare/
 ├── cmd/
 │   └── api/main.go
 ├── internal/
-│   ├── auth/          # JWT, password hashing, middleware
+│   ├── auth/          # JWT, password hashing
 │   ├── file/          # Upload, download, share handlers
 │   ├── user/          # User model & service
 │   ├── db/            # DB connection, migrations

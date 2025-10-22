@@ -4,18 +4,86 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
 	"github.com/i-christian/fileShare/internal/utils"
 	_ "github.com/joho/godotenv/autoload"
 )
+
+func main() {
+	// Create a done channel to signal when the shutdown is complete
+	done := make(chan bool, 1)
+
+	var logger *slog.Logger
+	if utils.GetEnvOrFile("ENV") == "testing" {
+		logger = slog.New(slog.DiscardHandler)
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
+	}
+
+	utils.ValidateEnvVars(logger)
+	_ = utils.SetUpFileStorage(logger)
+
+	_, err := hex.DecodeString(utils.GetEnvOrFile("JWT_SECRET"))
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	conn, err := db.InitialiseDB(utils.GetEnvOrFile("GOOSE_DRIVER"))
+	if err != nil {
+		logger.Error("failed to initialise database", "error message", err.Error())
+		os.Exit(1)
+	}
+
+	// Set up database in-app database migrations
+	func() {
+		var err error
+		for i := 0; i < 10; i++ {
+			err = db.SetUpMigration(conn)
+			if err == nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if err != nil {
+			logger.Error("failed to run migrations", "error message", err.Error())
+			os.Exit(1)
+		}
+	}()
+
+	_ = database.New(conn)
+	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
+	domain := utils.GetEnvOrFile("DOMAIN")
+
+	httpServer := &http.Server{
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      nil, // TODO: add router here
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 40 * time.Second,
+	}
+
+	log.Printf("The server is starting on: http://%s:%s\n", domain, strconv.Itoa(port))
+	err = httpServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		panic(fmt.Sprintf("http server error: %s", err))
+	}
+
+	// Wait for the graceful shutdown to complete
+	<-done
+	slog.Info("Graceful shutdown complete.")
+}
 
 func gracefulShutdown(conn *sql.DB, httpServer *http.Server, done chan bool) {
 	// Create context that listens for the interrupt signal from the OS.
@@ -44,40 +112,4 @@ func gracefulShutdown(conn *sql.DB, httpServer *http.Server, done chan bool) {
 
 	// Notify the main goroutine that the shutdown is complete
 	done <- true
-}
-
-func main() {
-	// Create a done channel to signal when the shutdown is complete
-	done := make(chan bool, 1)
-
-	var logger *slog.Logger
-	if utils.GetEnvOrFile("ENV") == "testing" {
-		logger = slog.New(slog.DiscardHandler)
-	} else {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
-	}
-
-	utils.ValidateEnvVars(logger)
-	fileStore := utils.SetUpFileStorage(logger)
-
-	SecretKey, err := hex.DecodeString(utils.GetEnvOrFile("RANDOM_HEX"))
-	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	log.Printf("The server is starting on: http://%s:%s\n", os.Getenv("DOMAIN"), os.Getenv("PORT"))
-
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	err := httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		panic(fmt.Sprintf("http server error: %s", err))
-	}
-
-	// Wait for the graceful shutdown to complete
-	<-done
-	slog.Info("Graceful shutdown complete.")
 }
