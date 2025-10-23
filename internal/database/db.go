@@ -27,14 +27,26 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.checkIfEmailExistsStmt, err = db.PrepareContext(ctx, checkIfEmailExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfEmailExists: %w", err)
 	}
+	if q.createRefreshTokenStmt, err = db.PrepareContext(ctx, createRefreshToken); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateRefreshToken: %w", err)
+	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
+	}
+	if q.deleteRefreshTokenStmt, err = db.PrepareContext(ctx, deleteRefreshToken); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteRefreshToken: %w", err)
+	}
+	if q.getRefreshTokenStmt, err = db.PrepareContext(ctx, getRefreshToken); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRefreshToken: %w", err)
 	}
 	if q.getUserByEmailStmt, err = db.PrepareContext(ctx, getUserByEmail); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByEmail: %w", err)
 	}
 	if q.getUserByIDStmt, err = db.PrepareContext(ctx, getUserByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByID: %w", err)
+	}
+	if q.revokeRefreshTokenStmt, err = db.PrepareContext(ctx, revokeRefreshToken); err != nil {
+		return nil, fmt.Errorf("error preparing query RevokeRefreshToken: %w", err)
 	}
 	return &q, nil
 }
@@ -46,9 +58,24 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing checkIfEmailExistsStmt: %w", cerr)
 		}
 	}
+	if q.createRefreshTokenStmt != nil {
+		if cerr := q.createRefreshTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createRefreshTokenStmt: %w", cerr)
+		}
+	}
 	if q.createUserStmt != nil {
 		if cerr := q.createUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
+		}
+	}
+	if q.deleteRefreshTokenStmt != nil {
+		if cerr := q.deleteRefreshTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteRefreshTokenStmt: %w", cerr)
+		}
+	}
+	if q.getRefreshTokenStmt != nil {
+		if cerr := q.getRefreshTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRefreshTokenStmt: %w", cerr)
 		}
 	}
 	if q.getUserByEmailStmt != nil {
@@ -59,6 +86,11 @@ func (q *Queries) Close() error {
 	if q.getUserByIDStmt != nil {
 		if cerr := q.getUserByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getUserByIDStmt: %w", cerr)
+		}
+	}
+	if q.revokeRefreshTokenStmt != nil {
+		if cerr := q.revokeRefreshTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing revokeRefreshTokenStmt: %w", cerr)
 		}
 	}
 	return err
@@ -101,9 +133,13 @@ type Queries struct {
 	db                     DBTX
 	tx                     *sql.Tx
 	checkIfEmailExistsStmt *sql.Stmt
+	createRefreshTokenStmt *sql.Stmt
 	createUserStmt         *sql.Stmt
+	deleteRefreshTokenStmt *sql.Stmt
+	getRefreshTokenStmt    *sql.Stmt
 	getUserByEmailStmt     *sql.Stmt
 	getUserByIDStmt        *sql.Stmt
+	revokeRefreshTokenStmt *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -111,8 +147,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                     tx,
 		tx:                     tx,
 		checkIfEmailExistsStmt: q.checkIfEmailExistsStmt,
+		createRefreshTokenStmt: q.createRefreshTokenStmt,
 		createUserStmt:         q.createUserStmt,
+		deleteRefreshTokenStmt: q.deleteRefreshTokenStmt,
+		getRefreshTokenStmt:    q.getRefreshTokenStmt,
 		getUserByEmailStmt:     q.getUserByEmailStmt,
 		getUserByIDStmt:        q.getUserByIDStmt,
+		revokeRefreshTokenStmt: q.revokeRefreshTokenStmt,
 	}
 }
