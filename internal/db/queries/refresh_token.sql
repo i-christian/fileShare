@@ -1,7 +1,7 @@
 -- name: CreateRefreshToken :one
 insert into refresh_tokens(user_id, token, expires_at, created_at, revoked)
     values ($1, $2, $3, $4, $5)
-returning refresh_token_id;
+returning *;
 
 -- name: GetRefreshToken :one
 select

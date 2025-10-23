@@ -15,7 +15,7 @@ import (
 const createRefreshToken = `-- name: CreateRefreshToken :one
 insert into refresh_tokens(user_id, token, expires_at, created_at, revoked)
     values ($1, $2, $3, $4, $5)
-returning refresh_token_id
+returning refresh_token_id, user_id, token, expires_at, created_at, revoked
 `
 
 type CreateRefreshTokenParams struct {
@@ -26,7 +26,7 @@ type CreateRefreshTokenParams struct {
 	Revoked   bool      `json:"revoked"`
 }
 
-func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (uuid.UUID, error) {
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
 	row := q.queryRow(ctx, q.createRefreshTokenStmt, createRefreshToken,
 		arg.UserID,
 		arg.Token,
@@ -34,9 +34,16 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		arg.CreatedAt,
 		arg.Revoked,
 	)
-	var refresh_token_id uuid.UUID
-	err := row.Scan(&refresh_token_id)
-	return refresh_token_id, err
+	var i RefreshToken
+	err := row.Scan(
+		&i.RefreshTokenID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.Revoked,
+	)
+	return i, err
 }
 
 const deleteRefreshToken = `-- name: DeleteRefreshToken :exec

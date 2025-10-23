@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/utils/security"
 )
@@ -108,4 +109,64 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 	}
 
 	return nil, ErrInvalidToken
+}
+
+func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+
+	if err := security.VerifyPassword(user.PasswordHash, password); err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+
+	accessToken, err = s.generateAccessToken(&user)
+	if err != nil {
+		return "", "", err
+	}
+
+	token, err := s.queries.CreateRefreshToken(ctx, database.CreateRefreshTokenParams{
+		UserID:    user.UserID,
+		Token:     uuid.NewString(),
+		ExpiresAt: time.Now().Add(refreshTokenTTL),
+		CreatedAt: time.Now(),
+		Revoked:   false,
+	})
+
+	return accessToken, token.Token, nil
+}
+
+func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString string) (string, error) {
+	token, err := s.queries.GetRefreshToken(ctx, refreshTokenString)
+	if err != nil {
+		return "", ErrInvalidToken
+	}
+
+	if token.Revoked {
+		return "", ErrInvalidToken
+	}
+
+	if time.Now().After(token.ExpiresAt) {
+		return "", ErrExpiredToken
+	}
+
+	user, err := s.queries.GetUserByID(ctx, token.UserID)
+	if err != nil {
+		return "", err
+	}
+
+	returnedUser := database.GetUserByEmailRow{
+		UserID:       user.UserID,
+		Email:        user.Email,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		PasswordHash: user.PasswordHash,
+		CreatedAt:    user.CreatedAt,
+		LastLogin:    user.LastLogin,
+	}
+
+	accessToken, err := s.generateAccessToken(&returnedUser)
+
+	return accessToken, nil
 }
