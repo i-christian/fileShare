@@ -6,9 +6,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/i-christian/fileShare/internal/auth"
 )
 
-func registerRoutes(domain string) http.Handler {
+func registerRoutes(domain string, authHandler *auth.AuthHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -30,9 +31,9 @@ func registerRoutes(domain string) http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Unauthorised routes
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/signup", nil)
-			r.Post("/login", nil)
-			r.With(nil).Post("/refresh", nil)
+			r.Post("/signup", authHandler.Signup)
+			r.Post("/login", authHandler.LoginWithRefresh)
+			r.With(nil).Post("/refresh", authHandler.Refresh)
 		})
 
 		// Authorised routes

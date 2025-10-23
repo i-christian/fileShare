@@ -14,11 +14,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
 	"github.com/i-christian/fileShare/internal/utils"
 	_ "github.com/joho/godotenv/autoload"
 )
+
+type Config struct {
+	port            int
+	domain          string
+	jwtSecret       string
+	jwtTTL          time.Duration
+	refreshTokenTTL time.Duration
+	logger          *slog.Logger
+}
 
 func main() {
 	// Create a done channel to signal when the shutdown is complete
@@ -34,7 +44,7 @@ func main() {
 	utils.ValidateEnvVars(logger)
 	_ = utils.SetUpFileStorage(logger)
 
-	_, err := hex.DecodeString(utils.GetEnvOrFile("JWT_SECRET"))
+	jwtSecret, err := hex.DecodeString(utils.GetEnvOrFile("JWT_SECRET"))
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
@@ -62,13 +72,24 @@ func main() {
 		}
 	}()
 
-	_ = database.New(conn)
+	psqlService := database.New(conn)
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
 	domain := utils.GetEnvOrFile("DOMAIN")
+	config := &Config{
+		port:            port,
+		domain:          domain,
+		jwtSecret:       string(jwtSecret),
+		jwtTTL:          15 * time.Minute,
+		refreshTokenTTL: 7 * 24 * time.Hour,
+		logger:          logger,
+	}
 
-	router := registerRoutes(domain)
+	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL)
+	authHandler := auth.NewAuthHandler(authService, config.refreshTokenTTL, config.logger)
+
+	router := registerRoutes(config.domain, authHandler)
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
+		Addr:         fmt.Sprintf(":%d", config.port),
 		Handler:      router,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  20 * time.Second,
