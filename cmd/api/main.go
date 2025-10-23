@@ -17,17 +17,18 @@ import (
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
+	"github.com/i-christian/fileShare/internal/router"
 	"github.com/i-christian/fileShare/internal/utils"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 type Config struct {
-	port            int
+	logger          *slog.Logger
 	domain          string
 	jwtSecret       string
+	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
-	logger          *slog.Logger
 }
 
 func main() {
@@ -60,6 +61,7 @@ func main() {
 	func() {
 		var err error
 		for i := 0; i < 10; i++ {
+			log.Printf("Trying to run database migration: %d\n", i)
 			err = db.SetUpMigration(conn)
 			if err == nil {
 				break
@@ -87,7 +89,8 @@ func main() {
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL)
 	authHandler := auth.NewAuthHandler(authService, config.refreshTokenTTL, config.logger)
 
-	router := registerRoutes(config.domain, authHandler)
+	router := router.RegisterRoutes(config.domain, authHandler)
+
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.port),
 		Handler:      router,

@@ -93,6 +93,14 @@ This documentation provides instructions on how to set up your environment and d
 
 ---
 
+---
+## Endpoints Testing 
+For basic curl commands to test the api endpoints refer to [USAGE](/usage.md).
+
+This documentation provide simple curl commands to test the api without need for postman. However you can also use Postman if you prefer than.
+
+---
+
 ## 🧵 Project Structure
 
 ```
@@ -100,9 +108,9 @@ fileShare/
 ├── cmd/
 │   └── api/main.go
 ├── internal/
-│   ├── auth/          # JWT, password hashing
+│   ├── auth/          # JWT, password hashing, & handlers
 │   ├── file/          # Upload, download, share handlers
-│   ├── user/          # User model & service
+│   ├── user/          # User service & handlers 
 │   ├── db/            # DB connection, migrations
 │   ├── middleware/    # Rate limiting, CORS, logging
 │   ├── worker/        # Background jobs
