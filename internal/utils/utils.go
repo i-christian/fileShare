@@ -127,3 +127,5 @@ func IsValidFileType(file io.Reader, filename string) (string, error) {
 		return "", fmt.Errorf("file '%s' has an invalid content type: %s", filename, contentType)
 	}
 }
+
+
