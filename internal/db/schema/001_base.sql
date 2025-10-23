@@ -7,21 +7,22 @@ CREATE TYPE file_visibility AS ENUM ('public', 'private');
 
 -- Users table: Stores user account information
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid7(),
+    user_id UUID PRIMARY KEY DEFAULT uuid7(),
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    is_verified BOOLEAN DEFAULT FALSE,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     role user_role NOT NULL DEFAULT 'user',
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Create refresh_tokens table
 CREATE TABLE refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_id UUID PRIMARY KEY DEFAULT uuidv7(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token VARCHAR(255) UNIQUE NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,8 +51,8 @@ CREATE TABLE password_reset_tokens (
 
 -- API Keys table: Allows users to generate keys for programmatic access
 CREATE TABLE api_keys (
-    id UUID PRIMARY KEY DEFAULT uuid7(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    api_key_id UUID PRIMARY KEY DEFAULT uuid7(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     key_hash VARCHAR(255) NOT NULL UNIQUE,
     prefix VARCHAR(16) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -60,8 +61,8 @@ CREATE TABLE api_keys (
 
 -- Files table: Stores metadata
 CREATE TABLE files (
-    id UUID PRIMARY KEY DEFAULT uuid7(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    file_id UUID PRIMARY KEY DEFAULT uuid7(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     storage_key TEXT NOT NULL UNIQUE,
     mime_type VARCHAR(100) NOT NULL,
@@ -74,8 +75,8 @@ CREATE TABLE files (
 
 -- Share Links table: Manages secure, time-sensitive, and protected links
 CREATE TABLE share_links (
-    id UUID PRIMARY KEY DEFAULT uuid7(),
-    file_id UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+    share_id UUID PRIMARY KEY DEFAULT uuid7(),
+    file_id UUID NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,
     created_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
     password_hash VARCHAR(255),
@@ -86,8 +87,8 @@ CREATE TABLE share_links (
 
 -- Upload Sessions table for chunked uploads
 CREATE TABLE upload_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid7(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    upload_id UUID PRIMARY KEY DEFAULT uuid7(),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     file_name TEXT NOT NULL,
     total_chunks INT NOT NULL,
     uploaded_chunks INT DEFAULT 0,

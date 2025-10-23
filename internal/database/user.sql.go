@@ -7,12 +7,32 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
 )
+
+const checkIfEmailExists = `-- name: CheckIfEmailExists :one
+select
+    count(email)
+from users
+    where email = $1
+`
+
+func (q *Queries) CheckIfEmailExists(ctx context.Context, email string) (int64, error) {
+	row := q.queryRow(ctx, q.checkIfEmailExistsStmt, checkIfEmailExists, email)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createUser = `-- name: CreateUser :one
 insert into users (first_name, last_name, email,  password_hash)
     values($1, $2, $3, $4)
-returning id, last_name, first_name, email, is_verified, role, password_hash, created_at, updated_at
+on conflict(email)
+    do nothing
+returning user_id, last_name, first_name, email, is_verified, role, password_hash, created_at, updated_at, last_login
 `
 
 type CreateUserParams struct {
@@ -22,6 +42,7 @@ type CreateUserParams struct {
 	PasswordHash string `json:"password_hash"`
 }
 
+// CreateUser adds a new user into the database returning user information.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.queryRow(ctx, q.createUserStmt, createUser,
 		arg.FirstName,
@@ -31,7 +52,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	)
 	var i User
 	err := row.Scan(
-		&i.ID,
+		&i.UserID,
 		&i.LastName,
 		&i.FirstName,
 		&i.Email,
@@ -40,6 +61,84 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+select
+    user_id,
+    email,
+    first_name,
+    last_name,
+    password_hash,
+    created_at,
+    last_login
+from users
+    where email = $1
+`
+
+type GetUserByEmailRow struct {
+	UserID       uuid.UUID    `json:"user_id"`
+	Email        string       `json:"email"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	PasswordHash string       `json:"password_hash"`
+	CreatedAt    time.Time    `json:"created_at"`
+	LastLogin    sql.NullTime `json:"last_login"`
+}
+
+// GetUserByEmail retrieves a user from the database by email.
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
+	row := q.queryRow(ctx, q.getUserByEmailStmt, getUserByEmail, email)
+	var i GetUserByEmailRow
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+select
+    user_id,
+    email,
+    first_name,
+    last_name,
+    password_hash,
+    created_at,
+    last_login
+from users
+    where user_id = $1
+`
+
+type GetUserByIDRow struct {
+	UserID       uuid.UUID    `json:"user_id"`
+	Email        string       `json:"email"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	PasswordHash string       `json:"password_hash"`
+	CreatedAt    time.Time    `json:"created_at"`
+	LastLogin    sql.NullTime `json:"last_login"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (GetUserByIDRow, error) {
+	row := q.queryRow(ctx, q.getUserByIDStmt, getUserByID, userID)
+	var i GetUserByIDRow
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.LastLogin,
 	)
 	return i, err
 }

@@ -141,7 +141,7 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type ApiKey struct {
-	ID         uuid.UUID    `json:"id"`
+	ApiKeyID   uuid.UUID    `json:"api_key_id"`
 	UserID     uuid.UUID    `json:"user_id"`
 	KeyHash    string       `json:"key_hash"`
 	Prefix     string       `json:"prefix"`
@@ -159,7 +159,7 @@ type EmailVerificationToken struct {
 }
 
 type File struct {
-	ID           uuid.UUID      `json:"id"`
+	FileID       uuid.UUID      `json:"file_id"`
 	UserID       uuid.UUID      `json:"user_id"`
 	Filename     string         `json:"filename"`
 	StorageKey   string         `json:"storage_key"`
@@ -180,8 +180,17 @@ type PasswordResetToken struct {
 	Used      bool      `json:"used"`
 }
 
+type RefreshToken struct {
+	RefreshTokenID uuid.UUID `json:"refresh_token_id"`
+	UserID         uuid.UUID `json:"user_id"`
+	Token          string    `json:"token"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	CreatedAt      time.Time `json:"created_at"`
+	Revoked        bool      `json:"revoked"`
+}
+
 type ShareLink struct {
-	ID              uuid.UUID      `json:"id"`
+	ShareID         uuid.UUID      `json:"share_id"`
 	FileID          uuid.UUID      `json:"file_id"`
 	CreatedByUserID uuid.UUID      `json:"created_by_user_id"`
 	Token           string         `json:"token"`
@@ -192,7 +201,7 @@ type ShareLink struct {
 }
 
 type UploadSession struct {
-	ID             uuid.UUID        `json:"id"`
+	UploadID       uuid.UUID        `json:"upload_id"`
 	UserID         uuid.NullUUID    `json:"user_id"`
 	FileName       string           `json:"file_name"`
 	TotalChunks    int32            `json:"total_chunks"`
@@ -203,13 +212,14 @@ type UploadSession struct {
 }
 
 type User struct {
-	ID           uuid.UUID    `json:"id"`
+	UserID       uuid.UUID    `json:"user_id"`
 	LastName     string       `json:"last_name"`
 	FirstName    string       `json:"first_name"`
 	Email        string       `json:"email"`
-	IsVerified   sql.NullBool `json:"is_verified"`
+	IsVerified   bool         `json:"is_verified"`
 	Role         UserRole     `json:"role"`
 	PasswordHash string       `json:"password_hash"`
 	CreatedAt    time.Time    `json:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at"`
+	LastLogin    sql.NullTime `json:"last_login"`
 }
