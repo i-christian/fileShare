@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -46,4 +45,67 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 	})
 
 	return user, nil
+}
+
+func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return "", ErrInvalidCredentials
+	}
+
+	if err := security.VerifyPassword(user.PasswordHash, password); err != nil {
+		return "", ErrInvalidCredentials
+	}
+
+	token, err := s.generateAccessToken(&user)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (s *AuthService) generateAccessToken(user *database.GetUserByEmailRow) (string, error) {
+	expirationTime := time.Now().Add(s.accessTokenTTL)
+
+	claims := jwt.MapClaims{
+		"sub":        user.UserID.String(),
+		"first_name": user.FirstName,
+		"last_name":  user.LastName,
+		"email":      user.Email,
+		"exp":        expirationTime.Unix(),
+		"iat":        time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString(s.jwtSecret)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+
+		return s.jwtSecret, nil
+	})
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrExpiredToken
+		}
+
+		return nil, ErrInvalidToken
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, ErrInvalidToken
 }
