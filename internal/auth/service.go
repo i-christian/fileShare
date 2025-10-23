@@ -11,13 +11,6 @@ import (
 	"github.com/i-christian/fileShare/internal/utils/security"
 )
 
-var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidToken       = errors.New("invalid token")
-	ErrExpiredToken       = errors.New("token has expired")
-	ErrEmailInUse         = errors.New("email already in use")
-)
-
 type AuthService struct {
 	queries        *database.Queries
 	jwtSecret      []byte
@@ -46,24 +39,6 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 	})
 
 	return user, nil
-}
-
-func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
-	user, err := s.queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		return "", ErrInvalidCredentials
-	}
-
-	if err := security.VerifyPassword(user.PasswordHash, password); err != nil {
-		return "", ErrInvalidCredentials
-	}
-
-	token, err := s.generateAccessToken(&user)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
 }
 
 func (s *AuthService) generateAccessToken(user *database.GetUserByEmailRow) (string, error) {
