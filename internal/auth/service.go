@@ -25,10 +25,10 @@ func NewAuthService(queries *database.Queries, jwtSecret string, accessTokenTTL 
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, password string) (database.User, error) {
+func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, password string) (ApiUser, error) {
 	hashedPassword, err := security.HashPassword(password)
 	if err != nil {
-		return database.User{}, err
+		return ApiUser{}, err
 	}
 
 	user, err := s.queries.CreateUser(ctx, database.CreateUserParams{
@@ -38,10 +38,19 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		PasswordHash: hashedPassword,
 	})
 	if err != nil {
-		return database.User{}, err
+		return ApiUser{}, err
 	}
 
-	return user, nil
+	return ApiUser{
+		UserID:     user.UserID,
+		LastName:   user.LastName,
+		FirstName:  user.FirstName,
+		Email:      user.Email,
+		IsVerified: user.IsVerified,
+		Role:       string(user.Role),
+		UpdatedAt:  user.UpdatedAt,
+		LastLogin:  user.LastLogin,
+	}, nil
 }
 
 func (s *AuthService) generateAccessToken(user *database.GetUserByEmailRow) (string, error) {

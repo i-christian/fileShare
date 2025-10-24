@@ -24,16 +24,14 @@ curl -X POST http://localhost:8080/api/v1/auth/signup \
 
 ```json
 {
-  "user_id":"019a1128-4f18-75bd-8731-bd6b8c02ae86",
+  "user_id":"019a170b-75e0-71a3-8704-7dd53dd2ae5d",
   "last_name":"Wonderland",
   "first_name":"Alice",
   "email":"alice@example.com",
   "is_verified":false,
   "role":"user",
-  "password_hash":"$2a$10$m8B.xBlDlrh/YgSJ6pCqMeRys9V30XAZGZTLEbTl.okZiLE50M2V2",
-  "created_at":"2025-10-23T15:00:45.718372+02:00",
-  "updated_at":"2025-10-23T15:00:45.718372+02:00",
-  "last_login":{"Time":"2025-10-23T15:00:45.718372+02:00","Valid":true}
+  "updated_at":"2025-10-24T18:26:58.399625+02:00",
+  "last_login":{"Time":"2025-10-24T18:26:58.399625+02:00","Valid":true}
 }
 ```
 
