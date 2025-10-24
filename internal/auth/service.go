@@ -37,6 +37,9 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		Email:        email,
 		PasswordHash: hashedPassword,
 	})
+	if err != nil {
+		return database.User{}, err
+	}
 
 	return user, nil
 }

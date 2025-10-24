@@ -10,8 +10,8 @@ import (
 
 type AuthHandler struct {
 	service         *AuthService
-	refreshTokenTTL time.Duration
 	logger          *slog.Logger
+	refreshTokenTTL time.Duration
 }
 
 func NewAuthHandler(service *AuthService, refreshTokenTTL time.Duration, logger *slog.Logger) *AuthHandler {
@@ -38,7 +38,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.Register(r.Context(), req.Email, req.FirstName, req.LastName, req.Password)
 	if err != nil {
 		utils.WriteErrorJSON(w, http.StatusInternalServerError, "failed to create user")
-		h.logger.Error("details", err.Error())
+		h.logger.Error("failed to create user", "details", err.Error())
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 	accessToken, refreshToken, err := h.service.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
 	if err != nil {
 		utils.WriteErrorJSON(w, http.StatusUnauthorized, ErrInvalidCredentials.Error())
-		h.logger.Error("details", err.Error())
+		h.logger.Error("login failure", "details", err.Error())
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	accessToken, err := h.service.RefreshAccessToken(r.Context(), req.RefreshToken)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		utils.WriteErrorJSON(w, http.StatusUnauthorized, "failed to refresh token")
 		return
 	}
 
