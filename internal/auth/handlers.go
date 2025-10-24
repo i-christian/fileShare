@@ -31,18 +31,18 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request")
+		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
 		return
 	}
 
 	user, err := h.service.Register(r.Context(), req.Email, req.FirstName, req.LastName, req.Password)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusInternalServerError, "failed to create user")
+		utils.WriteErrorJSON(w, http.StatusInternalServerError, "failed to create user", h.logger)
 		h.logger.Error("failed to create user", "details", err.Error())
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusCreated, user)
+	utils.WriteJSON(w, http.StatusCreated, user, nil, h.logger)
 }
 
 func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
@@ -52,21 +52,22 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request")
+		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
 		return
 	}
 
 	accessToken, refreshToken, err := h.service.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusUnauthorized, ErrInvalidCredentials.Error())
+		utils.WriteErrorJSON(w, http.StatusUnauthorized, ErrInvalidCredentials.Error(), h.logger)
 		h.logger.Error("login failure", "details", err.Error())
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]string{
+	data := map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-	})
+	}
+	utils.WriteJSON(w, http.StatusOK, data, nil, h.logger)
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -75,15 +76,15 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request")
+		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
 		return
 	}
 
 	accessToken, err := h.service.RefreshAccessToken(r.Context(), req.RefreshToken)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusUnauthorized, "failed to refresh token")
+		utils.WriteErrorJSON(w, http.StatusUnauthorized, "failed to refresh token", h.logger)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken})
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken}, nil, h.logger)
 }

@@ -134,15 +134,7 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 		return "", err
 	}
 
-	returnedUser := database.GetUserByEmailRow{
-		UserID:       user.UserID,
-		Email:        user.Email,
-		FirstName:    user.FirstName,
-		LastName:     user.LastName,
-		PasswordHash: user.PasswordHash,
-		CreatedAt:    user.CreatedAt,
-		LastLogin:    user.LastLogin,
-	}
+	returnedUser := database.GetUserByEmailRow(user)
 
 	accessToken, err := s.generateAccessToken(&returnedUser)
 

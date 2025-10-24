@@ -3,21 +3,30 @@ package utils
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 )
 
 // WriteJSON writes a JSON response with the given status code and payload.
-func WriteJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
+func WriteJSON(w http.ResponseWriter, status int, data any, headers http.Header, logger *slog.Logger) {
 	if data == nil {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	js, err := json.Marshal(data)
+	if err != nil {
+		logger.Error(err.Error())
 		http.Error(w, "failed to encode json response", http.StatusInternalServerError)
 	}
+
+	js = append(js, '\n')
+	for key, value := range headers {
+		w.Header()[key] = value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
 }
 
 // ReadJSON decodes a JSON request body into the provided destination struct.
@@ -39,6 +48,6 @@ func ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 }
 
 // WriteError returns an error in json format to the client
-func WriteErrorJSON(w http.ResponseWriter, status int, msg string) {
-	WriteJSON(w, status, map[string]string{"error": msg})
+func WriteErrorJSON(w http.ResponseWriter, status int, msg string, logger *slog.Logger) {
+	WriteJSON(w, status, map[string]string{"error": msg}, nil, logger)
 }
