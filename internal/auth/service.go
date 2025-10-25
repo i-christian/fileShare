@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -13,15 +14,17 @@ import (
 
 type AuthService struct {
 	queries        *database.Queries
+	Logger         *slog.Logger
 	jwtSecret      []byte
 	accessTokenTTL time.Duration
 }
 
-func NewAuthService(queries *database.Queries, jwtSecret string, accessTokenTTL time.Duration) *AuthService {
+func NewAuthService(queries *database.Queries, jwtSecret string, accessTokenTTL time.Duration, logger *slog.Logger) *AuthService {
 	return &AuthService{
 		queries:        queries,
 		jwtSecret:      []byte(jwtSecret),
 		accessTokenTTL: accessTokenTTL,
+		Logger:         logger,
 	}
 }
 

@@ -86,10 +86,10 @@ func main() {
 		logger:          logger,
 	}
 
-	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL)
+	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	authHandler := auth.NewAuthHandler(authService, config.refreshTokenTTL, config.logger)
 
-	router := router.RegisterRoutes(config.domain, authHandler)
+	router := router.RegisterRoutes(config.domain, authHandler, authService)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.port),
