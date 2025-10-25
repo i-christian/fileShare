@@ -77,10 +77,12 @@ curl -X GET http://localhost:8080/api/v1/user/me \
 
 ```json
 {
-  "user_id": "1d8b8f9e-1f4b-4e8c-8a60-7cc6a35f29f2",
-  "email": "alice@example.com",
-  "first_name": "Alice",
-  "last_name": "Wonderland"
+  "user_id":"019a1b18-609c-723b-b20e-903b83d73941",
+  "email":"alice@example.com",
+  "first_name":"Alice",
+  "last_name":"Wonderland",
+  "is_verified":false,
+  "role":"user"
 }
 ```
 
@@ -100,6 +102,7 @@ When your access token expires, request a new one using your refresh token:
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/refresh \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}"
 ```
 
@@ -130,10 +133,12 @@ curl -X GET http://localhost:8080/api/v1/user/me \
 
 ```json
 {
-  "user_id": "1d8b8f9e-1f4b-4e8c-8a60-7cc6a35f29f2",
-  "email": "alice@example.com",
-  "first_name": "Alice",
-  "last_name": "Wonderland"
+  "user_id":"019a1b18-609c-723b-b20e-903b83d73941",
+  "email":"alice@example.com",
+  "first_name":"Alice",
+  "last_name":"Wonderland",
+  "is_verified":false,
+  "role":"user"
 }
 ```
 

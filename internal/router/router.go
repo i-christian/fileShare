@@ -8,9 +8,10 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/middlewares"
+	"github.com/i-christian/fileShare/internal/user"
 )
 
-func RegisterRoutes(domain string, authHandler *auth.AuthHandler, authService *auth.AuthService) http.Handler {
+func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthService, uH *user.UserHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -32,15 +33,15 @@ func RegisterRoutes(domain string, authHandler *auth.AuthHandler, authService *a
 	r.Route("/api/v1", func(r chi.Router) {
 		// Unauthorised routes
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/signup", authHandler.Signup)
-			r.Post("/login", authHandler.LoginWithRefresh)
-			r.With(middlewares.AuthMiddleware(authService)).Post("/refresh", authHandler.Refresh)
+			r.Post("/signup", aH.Signup)
+			r.Post("/login", aH.LoginWithRefresh)
+			r.With(middlewares.AuthMiddleware(authService)).Post("/refresh", aH.Refresh)
 		})
 
 		// Authorised routes
-		r.Group(func(r chi.Router) {
+		r.Route("/user", func(r chi.Router) {
 			r.Use(middlewares.AuthMiddleware(authService))
-			r.Get("/me", nil)
+			r.Get("/me", uH.MyProfile)
 		})
 	})
 

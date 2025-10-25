@@ -56,14 +56,14 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 	}, nil
 }
 
-func (s *AuthService) generateAccessToken(user *database.GetUserByEmailRow) (string, error) {
+func (s *AuthService) generateAccessToken(email, firstName, lastName string, userID uuid.UUID) (string, error) {
 	expirationTime := time.Now().Add(s.accessTokenTTL)
 
 	claims := jwt.MapClaims{
-		"sub":        user.UserID.String(),
-		"first_name": user.FirstName,
-		"last_name":  user.LastName,
-		"email":      user.Email,
+		"sub":        userID.String(),
+		"first_name": firstName,
+		"last_name":  lastName,
+		"email":      email,
 		"exp":        expirationTime.Unix(),
 		"iat":        time.Now().Unix(),
 	}
@@ -111,7 +111,7 @@ func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password stri
 		return "", "", ErrInvalidCredentials
 	}
 
-	accessToken, err = s.generateAccessToken(&user)
+	accessToken, err = s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID)
 	if err != nil {
 		return "", "", err
 	}
@@ -146,9 +146,7 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 		return "", err
 	}
 
-	returnedUser := database.GetUserByEmailRow(user)
-
-	accessToken, err := s.generateAccessToken(&returnedUser)
+	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID)
 
 	return accessToken, nil
 }

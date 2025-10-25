@@ -14,7 +14,7 @@ select
     first_name,
     last_name,
     password_hash,
-    created_at,
+    is_verified,
     last_login
 from users
     where email = $1;
@@ -31,9 +31,8 @@ select
     email,
     first_name,
     last_name,
-    password_hash,
-    created_at,
-    last_login
+    is_verified,
+    role
 from users
     where user_id = $1;
 

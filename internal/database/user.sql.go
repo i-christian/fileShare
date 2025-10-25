@@ -8,7 +8,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -73,7 +72,7 @@ select
     first_name,
     last_name,
     password_hash,
-    created_at,
+    is_verified,
     last_login
 from users
     where email = $1
@@ -85,7 +84,7 @@ type GetUserByEmailRow struct {
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
 	PasswordHash string       `json:"password_hash"`
-	CreatedAt    time.Time    `json:"created_at"`
+	IsVerified   bool         `json:"is_verified"`
 	LastLogin    sql.NullTime `json:"last_login"`
 }
 
@@ -99,7 +98,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.FirstName,
 		&i.LastName,
 		&i.PasswordHash,
-		&i.CreatedAt,
+		&i.IsVerified,
 		&i.LastLogin,
 	)
 	return i, err
@@ -111,21 +110,19 @@ select
     email,
     first_name,
     last_name,
-    password_hash,
-    created_at,
-    last_login
+    is_verified,
+    role
 from users
     where user_id = $1
 `
 
 type GetUserByIDRow struct {
-	UserID       uuid.UUID    `json:"user_id"`
-	Email        string       `json:"email"`
-	FirstName    string       `json:"first_name"`
-	LastName     string       `json:"last_name"`
-	PasswordHash string       `json:"password_hash"`
-	CreatedAt    time.Time    `json:"created_at"`
-	LastLogin    sql.NullTime `json:"last_login"`
+	UserID     uuid.UUID `json:"user_id"`
+	Email      string    `json:"email"`
+	FirstName  string    `json:"first_name"`
+	LastName   string    `json:"last_name"`
+	IsVerified bool      `json:"is_verified"`
+	Role       UserRole  `json:"role"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (GetUserByIDRow, error) {
@@ -136,9 +133,8 @@ func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (GetUserByI
 		&i.Email,
 		&i.FirstName,
 		&i.LastName,
-		&i.PasswordHash,
-		&i.CreatedAt,
-		&i.LastLogin,
+		&i.IsVerified,
+		&i.Role,
 	)
 	return i, err
 }

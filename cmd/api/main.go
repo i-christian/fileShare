@@ -18,6 +18,7 @@ import (
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
 	"github.com/i-christian/fileShare/internal/router"
+	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -89,7 +90,10 @@ func main() {
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	authHandler := auth.NewAuthHandler(authService, config.refreshTokenTTL, config.logger)
 
-	router := router.RegisterRoutes(config.domain, authHandler, authService)
+	userService := user.NewUserService(psqlService, config.logger)
+	userHandler := user.NewUserHandler(userService)
+
+	router := router.RegisterRoutes(config.domain, authHandler, authService, userHandler)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.port),
