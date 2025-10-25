@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 )
@@ -13,7 +12,7 @@ func WriteJSON(w http.ResponseWriter, status int, data any, headers http.Header,
 		return
 	}
 
-	js, err := json.Marshal(data)
+	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		logger.Error(err.Error())
 		http.Error(w, "failed to encode json response", http.StatusInternalServerError)
@@ -31,16 +30,9 @@ func WriteJSON(w http.ResponseWriter, status int, data any, headers http.Header,
 
 // ReadJSON decodes a JSON request body into the provided destination struct.
 // It also closes the request body automatically.
-func ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	defer r.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	if err != nil {
-		http.Error(w, "unable to read request body", http.StatusBadRequest)
-		return err
-	}
-
-	if err := json.Unmarshal(body, dst); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+func ReadJSON(w http.ResponseWriter, r *http.Request, dst any, logger *slog.Logger) error {
+	if err := json.NewDecoder(r.Body).Decode(&dst); err != nil {
+		WriteErrorJSON(w, http.StatusBadRequest, "invalid JSON", logger)
 		return err
 	}
 
