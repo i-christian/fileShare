@@ -30,8 +30,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		Password  string `json:"password"`
 	}
 
-	if err := utils.ReadJSON(w, r, &req, h.logger); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
+	if err := utils.ReadJSON(w, r, &req); err != nil {
+		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid json", h.logger)
 		return
 	}
 
@@ -51,8 +51,7 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := utils.ReadJSON(w, r, &req, h.logger); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
+	if err := utils.ReadJSON(w, r, &req); err != nil {
 		return
 	}
 
@@ -75,7 +74,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 
-	if err := utils.ReadJSON(w, r, &req, h.logger); err != nil {
+	if err := utils.ReadJSON(w, r, &req); err != nil {
 		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
 		return
 	}
