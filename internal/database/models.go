@@ -11,7 +11,51 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
+
+type ApiScope string
+
+const (
+	ApiScopeRead  ApiScope = "read"
+	ApiScopeWrite ApiScope = "write"
+	ApiScopeSuper ApiScope = "super"
+)
+
+func (e *ApiScope) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ApiScope(s)
+	case string:
+		*e = ApiScope(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ApiScope: %T", src)
+	}
+	return nil
+}
+
+type NullApiScope struct {
+	ApiScope ApiScope `json:"api_scope"`
+	Valid    bool     `json:"valid"` // Valid is true if ApiScope is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullApiScope) Scan(value interface{}) error {
+	if value == nil {
+		ns.ApiScope, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ApiScope.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullApiScope) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ApiScope), nil
+}
 
 type FileVisibility string
 
@@ -143,10 +187,17 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 type ApiKey struct {
 	ApiKeyID   uuid.UUID    `json:"api_key_id"`
 	UserID     uuid.UUID    `json:"user_id"`
+	Name       string       `json:"name"`
 	KeyHash    string       `json:"key_hash"`
 	Prefix     string       `json:"prefix"`
+	Scope      []ApiScope   `json:"scope"`
+	IsRevoked  bool         `json:"is_revoked"`
+	RevokedAt  sql.NullTime `json:"revoked_at"`
 	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+	ExpiresAt  time.Time    `json:"expires_at"`
 	LastUsedAt sql.NullTime `json:"last_used_at"`
+	LastUsedIp pqtype.Inet  `json:"last_used_ip"`
 }
 
 type EmailVerificationToken struct {

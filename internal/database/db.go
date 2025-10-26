@@ -27,14 +27,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.checkIfEmailExistsStmt, err = db.PrepareContext(ctx, checkIfEmailExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfEmailExists: %w", err)
 	}
+	if q.createApiKeyStmt, err = db.PrepareContext(ctx, createApiKey); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateApiKey: %w", err)
+	}
 	if q.createRefreshTokenStmt, err = db.PrepareContext(ctx, createRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateRefreshToken: %w", err)
 	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
 	}
+	if q.deleteApiKeyStmt, err = db.PrepareContext(ctx, deleteApiKey); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteApiKey: %w", err)
+	}
 	if q.deleteRefreshTokenStmt, err = db.PrepareContext(ctx, deleteRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRefreshToken: %w", err)
+	}
+	if q.getApiKeyByHashStmt, err = db.PrepareContext(ctx, getApiKeyByHash); err != nil {
+		return nil, fmt.Errorf("error preparing query GetApiKeyByHash: %w", err)
 	}
 	if q.getRefreshTokenStmt, err = db.PrepareContext(ctx, getRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRefreshToken: %w", err)
@@ -45,8 +54,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getUserByIDStmt, err = db.PrepareContext(ctx, getUserByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByID: %w", err)
 	}
+	if q.listApiKeysByUserStmt, err = db.PrepareContext(ctx, listApiKeysByUser); err != nil {
+		return nil, fmt.Errorf("error preparing query ListApiKeysByUser: %w", err)
+	}
+	if q.revokeApiKeyStmt, err = db.PrepareContext(ctx, revokeApiKey); err != nil {
+		return nil, fmt.Errorf("error preparing query RevokeApiKey: %w", err)
+	}
 	if q.revokeRefreshTokenStmt, err = db.PrepareContext(ctx, revokeRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query RevokeRefreshToken: %w", err)
+	}
+	if q.updateApiKeyLastUsedStmt, err = db.PrepareContext(ctx, updateApiKeyLastUsed); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateApiKeyLastUsed: %w", err)
 	}
 	return &q, nil
 }
@@ -56,6 +74,11 @@ func (q *Queries) Close() error {
 	if q.checkIfEmailExistsStmt != nil {
 		if cerr := q.checkIfEmailExistsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing checkIfEmailExistsStmt: %w", cerr)
+		}
+	}
+	if q.createApiKeyStmt != nil {
+		if cerr := q.createApiKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createApiKeyStmt: %w", cerr)
 		}
 	}
 	if q.createRefreshTokenStmt != nil {
@@ -68,9 +91,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
 		}
 	}
+	if q.deleteApiKeyStmt != nil {
+		if cerr := q.deleteApiKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteApiKeyStmt: %w", cerr)
+		}
+	}
 	if q.deleteRefreshTokenStmt != nil {
 		if cerr := q.deleteRefreshTokenStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteRefreshTokenStmt: %w", cerr)
+		}
+	}
+	if q.getApiKeyByHashStmt != nil {
+		if cerr := q.getApiKeyByHashStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getApiKeyByHashStmt: %w", cerr)
 		}
 	}
 	if q.getRefreshTokenStmt != nil {
@@ -88,9 +121,24 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getUserByIDStmt: %w", cerr)
 		}
 	}
+	if q.listApiKeysByUserStmt != nil {
+		if cerr := q.listApiKeysByUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listApiKeysByUserStmt: %w", cerr)
+		}
+	}
+	if q.revokeApiKeyStmt != nil {
+		if cerr := q.revokeApiKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing revokeApiKeyStmt: %w", cerr)
+		}
+	}
 	if q.revokeRefreshTokenStmt != nil {
 		if cerr := q.revokeRefreshTokenStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing revokeRefreshTokenStmt: %w", cerr)
+		}
+	}
+	if q.updateApiKeyLastUsedStmt != nil {
+		if cerr := q.updateApiKeyLastUsedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateApiKeyLastUsedStmt: %w", cerr)
 		}
 	}
 	return err
@@ -130,29 +178,41 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                     DBTX
-	tx                     *sql.Tx
-	checkIfEmailExistsStmt *sql.Stmt
-	createRefreshTokenStmt *sql.Stmt
-	createUserStmt         *sql.Stmt
-	deleteRefreshTokenStmt *sql.Stmt
-	getRefreshTokenStmt    *sql.Stmt
-	getUserByEmailStmt     *sql.Stmt
-	getUserByIDStmt        *sql.Stmt
-	revokeRefreshTokenStmt *sql.Stmt
+	db                       DBTX
+	tx                       *sql.Tx
+	checkIfEmailExistsStmt   *sql.Stmt
+	createApiKeyStmt         *sql.Stmt
+	createRefreshTokenStmt   *sql.Stmt
+	createUserStmt           *sql.Stmt
+	deleteApiKeyStmt         *sql.Stmt
+	deleteRefreshTokenStmt   *sql.Stmt
+	getApiKeyByHashStmt      *sql.Stmt
+	getRefreshTokenStmt      *sql.Stmt
+	getUserByEmailStmt       *sql.Stmt
+	getUserByIDStmt          *sql.Stmt
+	listApiKeysByUserStmt    *sql.Stmt
+	revokeApiKeyStmt         *sql.Stmt
+	revokeRefreshTokenStmt   *sql.Stmt
+	updateApiKeyLastUsedStmt *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                     tx,
-		tx:                     tx,
-		checkIfEmailExistsStmt: q.checkIfEmailExistsStmt,
-		createRefreshTokenStmt: q.createRefreshTokenStmt,
-		createUserStmt:         q.createUserStmt,
-		deleteRefreshTokenStmt: q.deleteRefreshTokenStmt,
-		getRefreshTokenStmt:    q.getRefreshTokenStmt,
-		getUserByEmailStmt:     q.getUserByEmailStmt,
-		getUserByIDStmt:        q.getUserByIDStmt,
-		revokeRefreshTokenStmt: q.revokeRefreshTokenStmt,
+		db:                       tx,
+		tx:                       tx,
+		checkIfEmailExistsStmt:   q.checkIfEmailExistsStmt,
+		createApiKeyStmt:         q.createApiKeyStmt,
+		createRefreshTokenStmt:   q.createRefreshTokenStmt,
+		createUserStmt:           q.createUserStmt,
+		deleteApiKeyStmt:         q.deleteApiKeyStmt,
+		deleteRefreshTokenStmt:   q.deleteRefreshTokenStmt,
+		getApiKeyByHashStmt:      q.getApiKeyByHashStmt,
+		getRefreshTokenStmt:      q.getRefreshTokenStmt,
+		getUserByEmailStmt:       q.getUserByEmailStmt,
+		getUserByIDStmt:          q.getUserByIDStmt,
+		listApiKeysByUserStmt:    q.listApiKeysByUserStmt,
+		revokeApiKeyStmt:         q.revokeApiKeyStmt,
+		revokeRefreshTokenStmt:   q.revokeRefreshTokenStmt,
+		updateApiKeyLastUsedStmt: q.updateApiKeyLastUsedStmt,
 	}
 }

@@ -4,6 +4,7 @@
 CREATE TYPE upload_status AS ENUM ('pending', 'completed', 'failed');
 CREATE TYPE user_role AS ENUM ('admin', 'user');
 CREATE TYPE file_visibility AS ENUM ('public', 'private');
+CREATE TYPE api_scope AS ENUM ('read', 'write', 'super');
 
 -- Users table: Stores user account information
 CREATE TABLE users (
@@ -53,10 +54,17 @@ CREATE TABLE password_reset_tokens (
 CREATE TABLE api_keys (
     api_key_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL DEFAULT 'Default Key',
     key_hash VARCHAR(255) NOT NULL UNIQUE,
     prefix VARCHAR(16) NOT NULL UNIQUE,
+    scope api_scope[] DEFAULT ARRAY['read']::api_scope[],
+    is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
+    revoked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_used_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '3 MONTHS',
+    last_used_at TIMESTAMPTZ,
+    last_used_ip INET
 );
 
 -- Files table: Stores metadata
@@ -105,6 +113,8 @@ CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)
 CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_visibility ON files(visibility);
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
+CREATE INDEX idx_api_keys_is_revoked ON api_keys(is_revoked);
 CREATE INDEX idx_share_links_file_id ON share_links(file_id);
 CREATE INDEX idx_share_links_token ON share_links(token);
 CREATE INDEX idx_upload_sessions_user_id ON upload_sessions(user_id);
@@ -125,3 +135,4 @@ DROP TABLE IF EXISTS users;
 DROP TYPE IF EXISTS file_visibility;
 DROP TYPE IF EXISTS user_role;
 DROP TYPE IF EXISTS upload_status;
+DROP TYPE IF EXISTS api_scope;
