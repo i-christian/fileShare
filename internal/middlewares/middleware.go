@@ -19,32 +19,32 @@ func AuthMiddleware(authService *auth.AuthService) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				utils.WriteErrorJSON(w, http.StatusUnauthorized, "authorization header require", authService.Logger)
+				utils.UnauthorisedResponse(w, "authorization header required")
 				return
 			}
 
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				utils.WriteErrorJSON(w, http.StatusUnauthorized, "invalid authorization format", authService.Logger)
+				utils.UnauthorisedResponse(w, "invalid authorization format")
 				return
 			}
 
 			tokenString := parts[1]
 			claims, err := authService.ValidateToken(tokenString)
 			if err != nil {
-				utils.WriteErrorJSON(w, http.StatusUnauthorized, "invalid or expired token", authService.Logger)
+				utils.UnauthorisedResponse(w, "invalid or expired token")
 				return
 			}
 
 			userIDStr, ok := claims["sub"].(string)
 			if !ok {
-				utils.WriteErrorJSON(w, http.StatusUnauthorized, "invalid token claims", authService.Logger)
+				utils.UnauthorisedResponse(w, "invalid token claims")
 				return
 			}
 
 			userID, err := uuid.Parse(userIDStr)
 			if err != nil {
-				utils.WriteErrorJSON(w, http.StatusUnauthorized, "invalid userID in token", authService.Logger)
+				utils.UnauthorisedResponse(w, "invalid userID in token")
 				return
 			}
 

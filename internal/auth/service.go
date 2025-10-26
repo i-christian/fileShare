@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/database"
+	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
 )
 
@@ -143,7 +144,7 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 
 	user, err := s.queries.GetUserByID(ctx, token.UserID)
 	if err != nil {
-		return "", err
+		return "", errors.Join(utils.ErrUnexpectedError, err)
 	}
 
 	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID)

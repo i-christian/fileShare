@@ -20,16 +20,20 @@ func NewUserHandler(u *UserService) *UserHandler {
 func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 	ctxUser, ok := middlewares.GetUserFromContext(r)
 	if !ok {
-		utils.WriteErrorJSON(w, http.StatusUnauthorized, "unauthorized", h.userService.logger)
+		utils.UnauthorisedResponse(w, "try to login first")
 		return
 	}
 
 	userDetails, err := h.userService.GetUserInfo(r.Context(), ctxUser)
 	if err != nil {
-		h.userService.logger.Error("failed to get user information", "details", err.Error())
-		utils.WriteErrorJSON(w, http.StatusInternalServerError, "internal server error", h.userService.logger)
+		utils.WriteServerError(h.userService.logger, "failed to get user information", err)
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, userDetails, nil, h.userService.logger)
+	err = utils.WriteJSON(w, http.StatusOK, userDetails, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.userService.logger, "failed to encode a json response", err)
+	}
 }

@@ -35,7 +35,7 @@ func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthS
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/signup", aH.Signup)
 			r.Post("/login", aH.LoginWithRefresh)
-			r.With(middlewares.AuthMiddleware(authService)).Post("/refresh", aH.Refresh)
+			r.Post("/refresh", aH.Refresh)
 		})
 
 		// Authorised routes

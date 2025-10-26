@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -31,18 +32,22 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid json", h.logger)
+		utils.BadRequestResponse(w, err)
 		return
 	}
 
 	user, err := h.service.Register(r.Context(), req.Email, req.FirstName, req.LastName, req.Password)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusInternalServerError, "failed to create user", h.logger)
-		h.logger.Error("failed to create user", "details", err.Error())
+		utils.WriteServerError(h.logger, "failed to create user", err)
+		utils.ServerErrorResponse(w, "failed to create user")
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusCreated, user, nil, h.logger)
+	err = utils.WriteJSON(w, http.StatusCreated, user, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to encode json response", err)
+	}
 }
 
 func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
@@ -52,13 +57,14 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
+		utils.BadRequestResponse(w, err)
 		return
 	}
 
 	accessToken, refreshToken, err := h.service.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusUnauthorized, ErrInvalidCredentials.Error(), h.logger)
-		h.logger.Error("login failure", "details", err.Error())
+		utils.UnauthorisedResponse(w, ErrInvalidCredentials.Error())
+		utils.WriteServerError(h.logger, "login failure", err)
 		return
 	}
 
@@ -66,7 +72,12 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	}
-	utils.WriteJSON(w, http.StatusOK, data, nil, h.logger)
+
+	err = utils.WriteJSON(w, http.StatusOK, data, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to encode a json response", err)
+	}
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -75,15 +86,26 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
-		utils.WriteErrorJSON(w, http.StatusBadRequest, "invalid request", h.logger)
+		utils.BadRequestResponse(w, err)
 		return
 	}
 
 	accessToken, err := h.service.RefreshAccessToken(r.Context(), req.RefreshToken)
 	if err != nil {
-		utils.WriteErrorJSON(w, http.StatusUnauthorized, "failed to refresh token", h.logger)
+		if errors.Is(err, utils.ErrUnexpectedError) {
+			utils.UnauthorisedResponse(w, utils.ErrUnexpectedError.Error())
+			utils.WriteServerError(h.logger, "failed to refresh access token", err)
+			return
+		}
+
+		utils.UnauthorisedResponse(w, err.Error())
+		utils.WriteServerError(h.logger, "failed to refresh access token", err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken}, nil, h.logger)
+	err = utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to encode json response", err)
+	}
 }

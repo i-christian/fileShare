@@ -102,7 +102,6 @@ When your access token expires, request a new one using your refresh token:
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/refresh \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}"
 ```
 
