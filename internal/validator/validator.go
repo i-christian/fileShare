@@ -3,16 +3,19 @@ package validator
 import (
 	"net/mail"
 	"slices"
+	"time"
 )
 
 // VerifyEmail checks if the email is valid
 func VerifyEmail(email string) bool {
 	_, err := mail.ParseAddress(email)
-	if err != nil {
-		return false
-	}
+	return err == nil
+}
 
-	return true
+//IsValidTimeFormat checks if the given timeString has the format we expect
+func IsValidTimeFormat(layout string, timeString string) bool {
+	_, err := time.Parse(layout, timeString)
+	return err == nil
 }
 
 // Validator contains a map of validation errors

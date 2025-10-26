@@ -15,13 +15,13 @@ type User struct {
 func ValidateUser(v *Validator, user *User) {
 	v.Check(VerifyEmail(user.Email), "email", "a valid value must provided")
 
-	v.Check(len(user.FirstName) > 2 && len(user.FirstName) <= 30, "firstName", "must be between 3 to 30 characters long")
-	v.Check(len(user.LastName) > 2 && len(user.LastName) <= 30, "lastName", "must be between 3 to 30 characters long")
+	v.Check(len(user.FirstName) > 2 && len(user.FirstName) <= 30, "first_name", "must be between 3 to 30 characters long")
+	v.Check(len(user.LastName) > 2 && len(user.LastName) <= 30, "last_name", "must be between 3 to 30 characters long")
 
 	v.Check(user.Password != "", "password", "must be provided")
 }
 
-func ValidateLogin(v *Validator, user *User) {
+func ValidateBasicLogin(v *Validator, user *User) {
 	v.Check(VerifyEmail(user.Email), "email", "a valid value must provided")
 	v.Check(user.Password != "", "password", "must be provided")
 }
