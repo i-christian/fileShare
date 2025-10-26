@@ -54,9 +54,9 @@ CREATE TABLE password_reset_tokens (
 CREATE TABLE api_keys (
     api_key_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL DEFAULT 'Default Key',
+    name VARCHAR(50) NOT NULL DEFAULT 'Default Key',
     key_hash VARCHAR(255) NOT NULL UNIQUE,
-    prefix VARCHAR(16) NOT NULL UNIQUE,
+    prefix VARCHAR(20) NOT NULL UNIQUE,
     scope api_scope[] DEFAULT ARRAY['read']::api_scope[],
     is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
     revoked_at TIMESTAMPTZ,

@@ -10,14 +10,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/database"
+	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
 )
 
 type ApiKeyService struct {
+	queries         *database.Queries
+	apiKeyPrefix    string
 	apiKeySecretLen uint8
 	apiKeyPrefixLen uint8
-	apiKeyPrefix    string
-	queries         *database.Queries
 }
 
 func NewApiKeyService(apiKeySecretLen, apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries) *ApiKeyService {
@@ -47,7 +48,7 @@ func generateSecureString(length uint8) (string, error) {
 
 // GenerateAPIKey creates a new API key for a user, stores its hash,
 // and returns the full, unhashed key one time.
-func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, name string, scope []database.ApiScope) (string, error) {
+func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, name string, expires time.Time, scope []database.ApiScope) (string, error) {
 	var prefix string
 	var err error
 	for i := 0; i < 5; i++ {
@@ -81,11 +82,12 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 	}
 
 	newKey, err := s.queries.CreateApiKey(ctx, database.CreateApiKeyParams{
-		UserID:  userID,
-		Name:    name,
-		KeyHash: keyHash,
-		Prefix:  prefix,
-		Scope:   scope,
+		UserID:    userID,
+		Name:      name,
+		KeyHash:   keyHash,
+		Prefix:    prefix,
+		Scope:     scope,
+		ExpiresAt: expires,
 	})
 	if err != nil {
 		return "", err
@@ -96,22 +98,22 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 	return fullKey, nil
 }
 
-// ValidateAPIKey checks a full API key string...
+// ValidateAPIKey checks a full API key string
 func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (uuid.UUID, error) {
-	parts := strings.SplitN(keyString, "_", 3)
-	if len(parts) != 3 || parts[0]+"_" != s.apiKeyPrefix {
+	parts := strings.SplitN(keyString, "_", 2)
+	if len(parts) != 2 {
 		return uuid.Nil, errors.New("invalid api key format")
 	}
 
-	prefix := parts[0] + "_" + parts[1]
-	secret := parts[2]
+	prefix := parts[0]
+	secret := parts[1]
 
 	dBKey, err := s.queries.GetApiKeyByPrefix(ctx, prefix)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return uuid.Nil, errors.New("invalid api key")
+			return uuid.Nil, errors.Join(errors.New("invalid api key prefix"), utils.ErrUnexpectedError)
 		}
-		return uuid.Nil, err
+		return uuid.Nil, errors.Join(err, utils.ErrUnexpectedError)
 	}
 
 	err = security.VerifyPassword(dBKey.KeyHash, secret)

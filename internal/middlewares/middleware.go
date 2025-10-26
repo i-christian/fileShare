@@ -2,17 +2,15 @@ package middlewares
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/utils/security"
 )
-
-type contextKey string
-
-const UserIDKey contextKey = "userID"
 
 func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeyService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -51,17 +49,23 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 					return
 				}
 
-				ctx := context.WithValue(r.Context(), UserIDKey, userID)
+				ctx := context.WithValue(r.Context(), security.UserIDKey, userID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 
 			case "ApiKey":
-				userID, err := apiKeyService.ValidateKey(r.Context(), credential)
+				userID, err := apiKeyService.ValidateAPIKey(r.Context(), credential)
 				if err != nil {
-					utils.UnauthorisedResponse(w, "invalid or expired API key")
+					if errors.Is(err, utils.ErrUnexpectedError) {
+						utils.UnauthorisedResponse(w, utils.ErrUnexpectedError.Error())
+						utils.WriteServerError(authService.Logger, "api key authorisation failed", err)
+
+					}
+					utils.UnauthorisedResponse(w, err.Error())
+					utils.WriteServerError(authService.Logger, "api key authorisation failed", err)
 					return
 				}
 
-				ctx := context.WithValue(r.Context(), UserIDKey, userID)
+				ctx := context.WithValue(r.Context(), security.UserIDKey, userID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 
 			default:
@@ -70,10 +74,4 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 			}
 		})
 	}
-}
-
-func GetUserFromContext(r *http.Request) (uuid.UUID, bool) {
-	userID, ok := r.Context().Value(UserIDKey).(uuid.UUID)
-
-	return userID, ok
 }

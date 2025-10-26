@@ -3,8 +3,8 @@ package user
 import (
 	"net/http"
 
-	"github.com/i-christian/fileShare/internal/middlewares"
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/utils/security"
 )
 
 type UserHandler struct {
@@ -18,7 +18,7 @@ func NewUserHandler(u *UserService) *UserHandler {
 }
 
 func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
-	ctxUser, ok := middlewares.GetUserFromContext(r)
+	ctxUser, ok := security.GetUserFromContext(r)
 	if !ok {
 		utils.UnauthorisedResponse(w, "try to login first")
 		return

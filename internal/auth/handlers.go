@@ -6,19 +6,23 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/utils/security"
 	"github.com/i-christian/fileShare/internal/validator"
 )
 
 type AuthHandler struct {
-	service         *AuthService
+	authService     *AuthService
+	apiKeyService   *ApiKeyService
 	logger          *slog.Logger
 	refreshTokenTTL time.Duration
 }
 
-func NewAuthHandler(service *AuthService, refreshTokenTTL time.Duration, logger *slog.Logger) *AuthHandler {
+func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger) *AuthHandler {
 	return &AuthHandler{
-		service:         service,
+		authService:     authService,
+		apiKeyService:   apiKeyService,
 		refreshTokenTTL: refreshTokenTTL,
 		logger:          logger,
 	}
@@ -50,7 +54,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.Register(r.Context(), req.Email, req.FirstName, req.LastName, req.Password)
+	user, err := h.authService.Register(r.Context(), req.Email, req.FirstName, req.LastName, req.Password)
 	if err != nil {
 		utils.WriteServerError(h.logger, "failed to create user", err)
 		utils.ServerErrorResponse(w, "failed to create user")
@@ -81,12 +85,12 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
-	if validator.ValidateLogin(v, loginVerify); !v.Valid() {
+	if validator.ValidateBasicLogin(v, loginVerify); !v.Valid() {
 		utils.FailedValidationResponse(w, v.Errors)
 		return
 	}
 
-	accessToken, refreshToken, err := h.service.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
+	accessToken, refreshToken, err := h.authService.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
 	if err != nil {
 		utils.UnauthorisedResponse(w, ErrInvalidCredentials.Error())
 		utils.WriteServerError(h.logger, "login failure", err)
@@ -115,7 +119,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := h.service.RefreshAccessToken(r.Context(), req.RefreshToken)
+	accessToken, err := h.authService.RefreshAccessToken(r.Context(), req.RefreshToken)
 	if err != nil {
 		if errors.Is(err, utils.ErrUnexpectedError) {
 			utils.UnauthorisedResponse(w, utils.ErrUnexpectedError.Error())
@@ -129,6 +133,74 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to encode json response", err)
+	}
+}
+
+func (h *AuthHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
+	userID, ok := security.GetUserFromContext(r)
+	if !ok {
+		utils.UnauthorisedResponse(w, "authentication required")
+		return
+	}
+
+	var req struct {
+		KeyName string    `json:"key_name"`
+		Expires time.Time `json:"expires_at,omitzero"`
+		Scope   []string  `json:"scope"`
+	}
+
+	if err := utils.ReadJSON(w, r, &req); err != nil {
+		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	apiKeyLogin := &validator.ApiKey{
+		KeyName: req.KeyName,
+		Expires: req.Expires,
+		Scope:   req.Scope,
+	}
+
+	v := validator.New()
+	if validator.ValidateAPIKeyLogin(v, apiKeyLogin); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+		return
+	}
+
+	newKeyScope := func() []database.ApiScope {
+		newScope := make([]database.ApiScope, 0)
+		supportedScope := map[database.ApiScope]struct{}{
+			database.ApiScopeRead:  {},
+			database.ApiScopeWrite: {},
+			database.ApiScopeSuper: {},
+		}
+
+		for _, scope := range req.Scope {
+			if _, exists := supportedScope[database.ApiScope(scope)]; exists {
+				newScope = append(newScope, database.ApiScope(scope))
+			}
+		}
+
+		return newScope
+	}
+
+	expires := time.Now().Add(90 * 24 * time.Hour)
+	if !req.Expires.IsZero() {
+		expires = req.Expires
+	}
+
+	fullKey, err := h.apiKeyService.GenerateAPIKey(r.Context(), userID, req.KeyName, expires, newKeyScope())
+	if err != nil {
+		utils.ServerErrorResponse(w, "could not generate api key")
+		utils.WriteServerError(h.logger, "could not generate api key", err)
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusCreated, map[string]string{
+		"apiKey": fullKey,
+	}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.logger, "failed to encode json response", err)

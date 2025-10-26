@@ -11,7 +11,7 @@ import (
 	"github.com/i-christian/fileShare/internal/user"
 )
 
-func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthService, uH *user.UserHandler) http.Handler {
+func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -40,8 +40,9 @@ func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthS
 
 		// Authorised routes
 		r.Route("/user", func(r chi.Router) {
-			r.Use(middlewares.AuthMiddleware(authService))
+			r.Use(middlewares.AuthMiddleware(authService, apiKeyService))
 			r.Get("/me", uH.MyProfile)
+			r.Post("/api-keys", aH.CreateAPIKey)
 		})
 	})
 

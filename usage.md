@@ -142,3 +142,72 @@ curl -X GET http://localhost:8080/api/v1/user/me \
 ```
 
 ---
+
+### 6️⃣ Create a New API Key 
+
+#### with expiration field
+```bash
+curl -X POST http://localhost:8080/api/v1/user/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "key_name": "CLI Integration Key",
+    "expires_at": "2025-12-31T23:59:59Z",
+    "scope": ["read", "write"]
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "apiKey": "fi068eqB7p5q9H_HOmSckSiUQBNlbUPyLO7PNAEKTN560ga"
+}
+```
+
+#### without expiration field
+```bash
+curl -X POST http://localhost:8080/api/v1/user/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "key_name": "CLI Integration Key",
+    "scope": ["read", "write"]
+  }'
+```
+
+
+**Response:**
+
+```json
+{
+  "apiKey": "fi068eXkGfaHQr_gfexbYIauupjsYf3XA3enXponoO2t8F0"
+}
+```
+
+You can store it and authenticate future requests using:
+
+```bash
+export API_KEY="apiKeyPrefix_L0ngS3cur3Str1ngG0esH3re"
+```
+
+Then access any API endpoint using the key:
+
+```bash
+curl -X GET http://localhost:8080/api/v1/user/me \
+  -H "Authorization: ApiKey $API_KEY"
+```
+
+**Response:**
+
+```json
+{
+  "user_id":"019a1b18-609c-723b-b20e-903b83d73941",
+  "email":"alice@example.com",
+  "first_name":"Alice",
+  "last_name":"Wonderland",
+  "is_verified":false,
+  "role":"user"
+}
+```
+---
