@@ -10,7 +10,7 @@ Below is a full working example showing how to test user signup, login, and toke
 ## 1️⃣ Register a new user
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/signup \
+curl -v http://localhost:8080/api/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
     "email": "alice@example.com",

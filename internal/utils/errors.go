@@ -9,8 +9,8 @@ import (
 var ErrUnexpectedError = errors.New("A server error occured while processing the request. Our team has been notified")
 
 // WriteErrorJSON returns an error in json format to the client
-func WriteErrorJSON(w http.ResponseWriter, status int, msg string) {
-	WriteJSON(w, status, map[string]string{"error": msg}, nil)
+func WriteErrorJSON(w http.ResponseWriter, status int, msg any) {
+	WriteJSON(w, status, map[string]any{"error": msg}, nil)
 }
 
 // BadRequestResponse is a wrapper on WriteErrorJSON function which handles bad request errors to client
@@ -26,6 +26,11 @@ func ServerErrorResponse(w http.ResponseWriter, message string) {
 // UnauthorisedResponse is a helper to send uauthorised response to client
 func UnauthorisedResponse(w http.ResponseWriter, msg string) {
 	WriteErrorJSON(w, http.StatusUnauthorized, msg)
+}
+
+// FailedValidationResponse returns an error if request body is invalid
+func FailedValidationResponse(w http.ResponseWriter, msg map[string]string) {
+	WriteErrorJSON(w, http.StatusUnprocessableEntity, msg)
 }
 
 // WriteServerLog logs server errors to the configured slog.logger for the application

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/validator"
 )
 
 type AuthHandler struct {
@@ -33,6 +34,19 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	if err := utils.ReadJSON(w, r, &req); err != nil {
 		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	userVerify := &validator.User{
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Password:  req.Password,
+	}
+
+	v := validator.New()
+	if validator.ValidateUser(v, userVerify); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
 		return
 	}
 
