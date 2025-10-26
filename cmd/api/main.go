@@ -83,6 +83,9 @@ func main() {
 		domain:          domain,
 		jwtSecret:       string(jwtSecret),
 		jwtTTL:          15 * time.Minute,
+		apiKeySecretLen: 32,
+		apiKeyPrefixLen: 8,
+		apiKeyPrefix:    utils.GetEnvOrFile("PROJECT_NAME"),
 		refreshTokenTTL: 7 * 24 * time.Hour,
 		logger:          logger,
 	}

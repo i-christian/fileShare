@@ -14,7 +14,7 @@ import (
 
 // Checks if required env vars are all set during server startup
 func ValidateEnvVars(logger *slog.Logger) {
-	requiredVars := []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "PORT", "DOMAIN", "JWT_SECRET", "PROJECT_NAME", "GOOSE_DRIVER", "GOOSE_MIGRATION_DIR", "SUPERUSER_EMAIL", "ENV", "UPLOADS_DIR"}
+	requiredVars := []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "PORT", "DOMAIN", "JWT_SECRET", "PROJECT_NAME", "GOOSE_DRIVER", "GOOSE_MIGRATION_DIR", "SUPERUSER_EMAIL", "ENV", "UPLOADS_DIR", "PROJECT_NAME"}
 	for _, v := range requiredVars {
 		if os.Getenv(v) == "" {
 			logger.Error(fmt.Sprintf("Environment variable %s is required", v))
@@ -127,5 +127,3 @@ func IsValidFileType(file io.Reader, filename string) (string, error) {
 		return "", fmt.Errorf("file '%s' has an invalid content type: %s", filename, contentType)
 	}
 }
-
-

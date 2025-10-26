@@ -1,3 +1,6 @@
+-- name: CheckIfAPIKeyExists :one
+select count(*) from api_keys where prefix = $1;
+
 -- name: CreateApiKey :one
 insert into api_keys (
     user_id,
@@ -24,8 +27,12 @@ from api_keys
     where user_id = $1
 order by created_at desc;
 
--- name: GetApiKeyByHash :one
-select * from api_keys where key_hash = $1;
+-- name: GetApiKeyByPrefix :one
+select
+    api_key_id,
+    key_hash,
+    user_id
+from api_keys where prefix = $1;
 
 -- name: RevokeApiKey :exec
 update api_keys

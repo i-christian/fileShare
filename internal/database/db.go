@@ -24,6 +24,9 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.checkIfAPIKeyExistsStmt, err = db.PrepareContext(ctx, checkIfAPIKeyExists); err != nil {
+		return nil, fmt.Errorf("error preparing query CheckIfAPIKeyExists: %w", err)
+	}
 	if q.checkIfEmailExistsStmt, err = db.PrepareContext(ctx, checkIfEmailExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfEmailExists: %w", err)
 	}
@@ -42,8 +45,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteRefreshTokenStmt, err = db.PrepareContext(ctx, deleteRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRefreshToken: %w", err)
 	}
-	if q.getApiKeyByHashStmt, err = db.PrepareContext(ctx, getApiKeyByHash); err != nil {
-		return nil, fmt.Errorf("error preparing query GetApiKeyByHash: %w", err)
+	if q.getApiKeyByPrefixStmt, err = db.PrepareContext(ctx, getApiKeyByPrefix); err != nil {
+		return nil, fmt.Errorf("error preparing query GetApiKeyByPrefix: %w", err)
 	}
 	if q.getRefreshTokenStmt, err = db.PrepareContext(ctx, getRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRefreshToken: %w", err)
@@ -71,6 +74,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
+	if q.checkIfAPIKeyExistsStmt != nil {
+		if cerr := q.checkIfAPIKeyExistsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing checkIfAPIKeyExistsStmt: %w", cerr)
+		}
+	}
 	if q.checkIfEmailExistsStmt != nil {
 		if cerr := q.checkIfEmailExistsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing checkIfEmailExistsStmt: %w", cerr)
@@ -101,9 +109,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteRefreshTokenStmt: %w", cerr)
 		}
 	}
-	if q.getApiKeyByHashStmt != nil {
-		if cerr := q.getApiKeyByHashStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getApiKeyByHashStmt: %w", cerr)
+	if q.getApiKeyByPrefixStmt != nil {
+		if cerr := q.getApiKeyByPrefixStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getApiKeyByPrefixStmt: %w", cerr)
 		}
 	}
 	if q.getRefreshTokenStmt != nil {
@@ -180,13 +188,14 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 type Queries struct {
 	db                       DBTX
 	tx                       *sql.Tx
+	checkIfAPIKeyExistsStmt  *sql.Stmt
 	checkIfEmailExistsStmt   *sql.Stmt
 	createApiKeyStmt         *sql.Stmt
 	createRefreshTokenStmt   *sql.Stmt
 	createUserStmt           *sql.Stmt
 	deleteApiKeyStmt         *sql.Stmt
 	deleteRefreshTokenStmt   *sql.Stmt
-	getApiKeyByHashStmt      *sql.Stmt
+	getApiKeyByPrefixStmt    *sql.Stmt
 	getRefreshTokenStmt      *sql.Stmt
 	getUserByEmailStmt       *sql.Stmt
 	getUserByIDStmt          *sql.Stmt
@@ -200,13 +209,14 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
 		db:                       tx,
 		tx:                       tx,
+		checkIfAPIKeyExistsStmt:  q.checkIfAPIKeyExistsStmt,
 		checkIfEmailExistsStmt:   q.checkIfEmailExistsStmt,
 		createApiKeyStmt:         q.createApiKeyStmt,
 		createRefreshTokenStmt:   q.createRefreshTokenStmt,
 		createUserStmt:           q.createUserStmt,
 		deleteApiKeyStmt:         q.deleteApiKeyStmt,
 		deleteRefreshTokenStmt:   q.deleteRefreshTokenStmt,
-		getApiKeyByHashStmt:      q.getApiKeyByHashStmt,
+		getApiKeyByPrefixStmt:    q.getApiKeyByPrefixStmt,
 		getRefreshTokenStmt:      q.getRefreshTokenStmt,
 		getUserByEmailStmt:       q.getUserByEmailStmt,
 		getUserByIDStmt:          q.getUserByIDStmt,

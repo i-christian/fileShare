@@ -14,7 +14,7 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 
-func AuthMiddleware(authService *auth.AuthService) func(http.Handler) http.Handler {
+func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeyService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -24,33 +24,50 @@ func AuthMiddleware(authService *auth.AuthService) func(http.Handler) http.Handl
 			}
 
 			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
+			if len(parts) != 2 {
 				utils.UnauthorisedResponse(w, "invalid authorization format")
 				return
 			}
 
-			tokenString := parts[1]
-			claims, err := authService.ValidateToken(tokenString)
-			if err != nil {
-				utils.UnauthorisedResponse(w, "invalid or expired token")
+			scheme, credential := parts[0], parts[1]
+
+			switch scheme {
+			case "Bearer":
+				claims, err := authService.ValidateToken(credential)
+				if err != nil {
+					utils.UnauthorisedResponse(w, "invalid or expired token")
+					return
+				}
+
+				userIDStr, ok := claims["sub"].(string)
+				if !ok {
+					utils.UnauthorisedResponse(w, "invalid token claims")
+					return
+				}
+
+				userID, err := uuid.Parse(userIDStr)
+				if err != nil {
+					utils.UnauthorisedResponse(w, "invalid userID in token")
+					return
+				}
+
+				ctx := context.WithValue(r.Context(), UserIDKey, userID)
+				next.ServeHTTP(w, r.WithContext(ctx))
+
+			case "ApiKey":
+				userID, err := apiKeyService.ValidateKey(r.Context(), credential)
+				if err != nil {
+					utils.UnauthorisedResponse(w, "invalid or expired API key")
+					return
+				}
+
+				ctx := context.WithValue(r.Context(), UserIDKey, userID)
+				next.ServeHTTP(w, r.WithContext(ctx))
+
+			default:
+				utils.UnauthorisedResponse(w, "unsupported authorization scheme")
 				return
 			}
-
-			userIDStr, ok := claims["sub"].(string)
-			if !ok {
-				utils.UnauthorisedResponse(w, "invalid token claims")
-				return
-			}
-
-			userID, err := uuid.Parse(userIDStr)
-			if err != nil {
-				utils.UnauthorisedResponse(w, "invalid userID in token")
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
-
-			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

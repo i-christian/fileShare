@@ -14,6 +14,17 @@ import (
 	"github.com/lib/pq"
 )
 
+const checkIfAPIKeyExists = `-- name: CheckIfAPIKeyExists :one
+select count(*) from api_keys where prefix = $1
+`
+
+func (q *Queries) CheckIfAPIKeyExists(ctx context.Context, prefix string) (int64, error) {
+	row := q.queryRow(ctx, q.checkIfAPIKeyExistsStmt, checkIfAPIKeyExists, prefix)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createApiKey = `-- name: CreateApiKey :one
 insert into api_keys (
     user_id,
@@ -76,28 +87,24 @@ func (q *Queries) DeleteApiKey(ctx context.Context, apiKeyID uuid.UUID) error {
 	return err
 }
 
-const getApiKeyByHash = `-- name: GetApiKeyByHash :one
-select api_key_id, user_id, name, key_hash, prefix, scope, is_revoked, revoked_at, created_at, updated_at, expires_at, last_used_at, last_used_ip from api_keys where key_hash = $1
+const getApiKeyByPrefix = `-- name: GetApiKeyByPrefix :one
+select
+    api_key_id,
+    key_hash,
+    user_id
+from api_keys where prefix = $1
 `
 
-func (q *Queries) GetApiKeyByHash(ctx context.Context, keyHash string) (ApiKey, error) {
-	row := q.queryRow(ctx, q.getApiKeyByHashStmt, getApiKeyByHash, keyHash)
-	var i ApiKey
-	err := row.Scan(
-		&i.ApiKeyID,
-		&i.UserID,
-		&i.Name,
-		&i.KeyHash,
-		&i.Prefix,
-		pq.Array(&i.Scope),
-		&i.IsRevoked,
-		&i.RevokedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ExpiresAt,
-		&i.LastUsedAt,
-		&i.LastUsedIp,
-	)
+type GetApiKeyByPrefixRow struct {
+	ApiKeyID uuid.UUID `json:"api_key_id"`
+	KeyHash  string    `json:"key_hash"`
+	UserID   uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetApiKeyByPrefix(ctx context.Context, prefix string) (GetApiKeyByPrefixRow, error) {
+	row := q.queryRow(ctx, q.getApiKeyByPrefixStmt, getApiKeyByPrefix, prefix)
+	var i GetApiKeyByPrefixRow
+	err := row.Scan(&i.ApiKeyID, &i.KeyHash, &i.UserID)
 	return i, err
 }
 
