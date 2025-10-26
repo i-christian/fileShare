@@ -75,6 +75,17 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loginVerify := &validator.User{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	v := validator.New()
+	if validator.ValidateLogin(v, loginVerify); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+		return
+	}
+
 	accessToken, refreshToken, err := h.service.LoginWithRefresh(r.Context(), req.Email, req.Password, h.refreshTokenTTL)
 	if err != nil {
 		utils.UnauthorisedResponse(w, ErrInvalidCredentials.Error())
