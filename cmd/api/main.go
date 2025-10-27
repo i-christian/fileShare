@@ -28,6 +28,7 @@ type Config struct {
 	logger          *slog.Logger
 	domain          string
 	jwtSecret       string
+	apiKeyPrefix    string
 	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
@@ -78,18 +79,20 @@ func main() {
 
 	psqlService := database.New(conn)
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
+	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
 	domain := utils.GetEnvOrFile("DOMAIN")
 	config := &Config{
 		port:            port,
 		domain:          domain,
 		jwtSecret:       string(jwtSecret),
 		jwtTTL:          15 * time.Minute,
+		apiKeyPrefix:    apiKeyPrefix,
 		refreshTokenTTL: 7 * 24 * time.Hour,
 		logger:          logger,
 	}
 
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
-	apiKeyService := auth.NewApiKeyService(32, 8, security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME")), psqlService)
+	apiKeyService := auth.NewApiKeyService(32, 8, config.apiKeyPrefix, psqlService)
 	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger)
 
 	userService := user.NewUserService(psqlService, config.logger)
