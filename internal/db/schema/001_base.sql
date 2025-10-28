@@ -77,6 +77,10 @@ CREATE TABLE files (
     size_bytes BIGINT NOT NULL,
     visibility file_visibility NOT NULL DEFAULT 'private',
     thumbnail_key TEXT,
+    checksum TEXT,
+    tags TEXT[] DEFAULT '{}',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -112,6 +116,9 @@ CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(
 CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_visibility ON files(visibility);
+CREATE INDEX idx_files_checksum ON files(checksum);
+CREATE INDEX idx_files_is_deleted ON files(is_deleted) WHERE is_deleted = TRUE;
+CREATE INDEX idx_files_tags_gin ON files USING GIN (tags)
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
 CREATE INDEX idx_api_keys_is_revoked ON api_keys(is_revoked);
