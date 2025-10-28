@@ -118,7 +118,7 @@ CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_visibility ON files(visibility);
 CREATE INDEX idx_files_checksum ON files(checksum);
 CREATE INDEX idx_files_is_deleted ON files(is_deleted) WHERE is_deleted = TRUE;
-CREATE INDEX idx_files_tags_gin ON files USING GIN (tags)
+CREATE INDEX idx_files_tags_gin ON files USING GIN (tags);
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
 CREATE INDEX idx_api_keys_is_revoked ON api_keys(is_revoked);

@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createApiKeyStmt, err = db.PrepareContext(ctx, createApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateApiKey: %w", err)
 	}
+	if q.createFileStmt, err = db.PrepareContext(ctx, createFile); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateFile: %w", err)
+	}
 	if q.createRefreshTokenStmt, err = db.PrepareContext(ctx, createRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateRefreshToken: %w", err)
 	}
@@ -87,6 +90,11 @@ func (q *Queries) Close() error {
 	if q.createApiKeyStmt != nil {
 		if cerr := q.createApiKeyStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createApiKeyStmt: %w", cerr)
+		}
+	}
+	if q.createFileStmt != nil {
+		if cerr := q.createFileStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createFileStmt: %w", cerr)
 		}
 	}
 	if q.createRefreshTokenStmt != nil {
@@ -191,6 +199,7 @@ type Queries struct {
 	checkIfAPIKeyExistsStmt  *sql.Stmt
 	checkIfEmailExistsStmt   *sql.Stmt
 	createApiKeyStmt         *sql.Stmt
+	createFileStmt           *sql.Stmt
 	createRefreshTokenStmt   *sql.Stmt
 	createUserStmt           *sql.Stmt
 	deleteApiKeyStmt         *sql.Stmt
@@ -212,6 +221,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		checkIfAPIKeyExistsStmt:  q.checkIfAPIKeyExistsStmt,
 		checkIfEmailExistsStmt:   q.checkIfEmailExistsStmt,
 		createApiKeyStmt:         q.createApiKeyStmt,
+		createFileStmt:           q.createFileStmt,
 		createRefreshTokenStmt:   q.createRefreshTokenStmt,
 		createUserStmt:           q.createUserStmt,
 		deleteApiKeyStmt:         q.deleteApiKeyStmt,
