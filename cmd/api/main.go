@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"log"
 	"log/slog"
@@ -32,6 +33,12 @@ type Config struct {
 	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
+
+	limiter struct {
+		rps     float64
+		burst   int
+		enabled bool
+	}
 }
 
 func main() {
@@ -77,7 +84,6 @@ func main() {
 		}
 	}()
 
-	psqlService := database.New(conn)
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
 	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
 	domain := utils.GetEnvOrFile("DOMAIN")
@@ -91,6 +97,13 @@ func main() {
 		logger:          logger,
 	}
 
+	flag.Float64Var(&config.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	flag.IntVar(&config.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
+	flag.BoolVar(&config.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	flag.Parse()
+
+	psqlService := database.New(conn)
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	apiKeyService := auth.NewApiKeyService(32, 8, config.apiKeyPrefix, psqlService)
 	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger)
@@ -98,7 +111,13 @@ func main() {
 	userService := user.NewUserService(psqlService, config.logger)
 	userHandler := user.NewUserHandler(userService)
 
-	router := router.RegisterRoutes(config.domain, authHandler, authService, apiKeyService, userHandler)
+	routeConfig := &router.RoutesConfig{
+		Domain:         config.domain,
+		Rps:            config.limiter.rps,
+		Burst:          config.limiter.burst,
+		LimiterEnabled: config.limiter.enabled,
+	}
+	router := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.port),

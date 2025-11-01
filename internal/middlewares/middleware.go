@@ -79,52 +79,63 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 	}
 }
 
+// Limiter is a config struct for rate limit middleware
+type Limiter struct {
+	Rps     float64
+	Burst   int
+	Enabled bool
+}
+
 // RateLimit middleware sets the Ip-based request rate limits
-func RateLimit(next http.Handler) http.Handler {
-	type client struct {
-		limiter  *rate.Limiter
-		lastSeen time.Time
-	}
+func RateLimit(rps float64, burst int, enabled bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		type client struct {
+			limiter  *rate.Limiter
+			lastSeen time.Time
+		}
 
-	var (
-		mu      sync.Mutex
-		clients = make(map[string]*client)
-	)
+		var (
+			mu      sync.Mutex
+			clients = make(map[string]*client)
+		)
 
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-			mu.Lock()
+		go func() {
+			for {
+				time.Sleep(time.Minute)
+				mu.Lock()
 
-			for ip, client := range clients {
-				if time.Since(client.lastSeen) > 3*time.Minute {
-					delete(clients, ip)
+				for ip, client := range clients {
+					if time.Since(client.lastSeen) > 3*time.Minute {
+						delete(clients, ip)
+					}
 				}
+
+				mu.Unlock()
+			}
+		}()
+
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if enabled {
+				ip, _ := security.GetIPAddress(r)
+
+				mu.Lock()
+
+				if _, found := clients[ip]; !found {
+					clients[ip] = &client{limiter: rate.NewLimiter(rate.Limit(rps), burst)}
+				}
+
+				clients[ip].lastSeen = time.Now()
+
+				if !clients[ip].limiter.Allow() {
+					mu.Unlock()
+					utils.RateLimitExcededResponse(w)
+					return
+				}
+
+				mu.Unlock()
 			}
 
-			mu.Unlock()
-		}
-	}()
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _ := security.GetIPAddress(r)
-
-		mu.Lock()
-
-		if _, found := clients[ip]; !found {
-			clients[ip] = &client{limiter: rate.NewLimiter(2, 4)}
-		}
-
-		clients[ip].lastSeen = time.Now()
-
-		if !clients[ip].limiter.Allow() {
-			mu.Unlock()
-			utils.RateLimitExcededResponse(w)
-			return
-		}
-
-		mu.Unlock()
-
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }

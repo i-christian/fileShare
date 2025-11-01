@@ -11,7 +11,14 @@ import (
 	"github.com/i-christian/fileShare/internal/user"
 )
 
-func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler) http.Handler {
+type RoutesConfig struct {
+	Domain         string
+	Rps            float64
+	Burst          int
+	LimiterEnabled bool
+}
+
+func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -20,11 +27,11 @@ func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthS
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(middlewares.RateLimit)
+	r.Use(middlewares.RateLimit(config.Rps, config.Burst, config.LimiterEnabled))
 
 	// CORS setup
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{domain},
+		AllowedOrigins:   []string{config.Domain},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
