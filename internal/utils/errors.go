@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-var ErrUnexpectedError = errors.New("A server error occured while processing the request. Our team has been notified")
+var (
+	ErrUnexpectedError = errors.New("A server error occured while processing the request. Our team has been notified")
+	ErrRecordExists    = errors.New("The record already exist in the database")
+)
 
 // WriteErrorJSON returns an error in json format to the client
 func WriteErrorJSON(w http.ResponseWriter, status int, msg any) {

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"time"
@@ -42,7 +43,11 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		PasswordHash: hashedPassword,
 	})
 	if err != nil {
-		return ApiUser{}, err
+		if err == sql.ErrNoRows {
+			return ApiUser{}, utils.ErrRecordExists
+		} else {
+			return ApiUser{}, err
+		}
 	}
 
 	return ApiUser{
