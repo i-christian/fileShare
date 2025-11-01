@@ -20,6 +20,7 @@ func RegisterRoutes(domain string, aH *auth.AuthHandler, authService *auth.AuthS
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middlewares.RateLimit)
 
 	// CORS setup
 	r.Use(cors.Handler(cors.Options{

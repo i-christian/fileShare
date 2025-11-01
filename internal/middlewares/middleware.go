@@ -10,6 +10,7 @@ import (
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
+	"golang.org/x/time/rate"
 )
 
 func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeyService) func(http.Handler) http.Handler {
@@ -74,4 +75,18 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 			}
 		})
 	}
+}
+
+// RateLimit middleware sets the global request rate limits
+func RateLimit(next http.Handler) http.Handler {
+	limiter := rate.NewLimiter(2, 4)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !limiter.Allow() {
+			utils.RateLimitExcededResponse(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

@@ -33,6 +33,10 @@ func FailedValidationResponse(w http.ResponseWriter, msg map[string]string) {
 	WriteErrorJSON(w, http.StatusUnprocessableEntity, msg)
 }
 
+func RateLimitExcededResponse(w http.ResponseWriter) {
+	WriteErrorJSON(w, http.StatusTooManyRequests, "rate limit exceded")
+}
+
 // WriteServerLog logs server errors to the configured slog.logger for the application
 func WriteServerLog(logger *slog.Logger, logLevel slog.Level, msg string, err error) {
 	switch logLevel {
