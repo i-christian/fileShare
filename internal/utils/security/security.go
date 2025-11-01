@@ -6,6 +6,7 @@ package security
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"strings"
 
@@ -24,6 +25,16 @@ const UserIDKey contextKey = "userID"
 func GetUserFromContext(r *http.Request) (uuid.UUID, bool) {
 	userID, ok := r.Context().Value(UserIDKey).(uuid.UUID)
 	return userID, ok
+}
+
+// GetIPAddress returns the host IP address from r.RemoteAddr
+func GetIPAddress(r *http.Request) (string, error) {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return "", err
+	}
+
+	return host, nil
 }
 
 // ShortProjectPrefix generates a short, deterministic character string based on
