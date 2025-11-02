@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/i-christian/fileShare/internal/database"
@@ -19,16 +20,18 @@ type AuthHandler struct {
 	apiKeyService   *ApiKeyService
 	logger          *slog.Logger
 	mailer          *mailer.Mailer
+	wg              *sync.WaitGroup
 	refreshTokenTTL time.Duration
 }
 
-func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger, mailer *mailer.Mailer) *AuthHandler {
+func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger, mailer *mailer.Mailer, wg *sync.WaitGroup) *AuthHandler {
 	return &AuthHandler{
 		authService:     authService,
 		apiKeyService:   apiKeyService,
 		refreshTokenTTL: refreshTokenTTL,
 		logger:          logger,
 		mailer:          mailer,
+		wg:              wg,
 	}
 }
 
@@ -65,8 +68,16 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	worker.BackgroundTask(h.logger, func(l *slog.Logger) {
+	worker.BackgroundTask(h.wg, h.logger, func(l *slog.Logger) {
 		l.Info("starting welcome email task", "recipient", user.UserID)
+
+		start := time.Now()
+		defer func() {
+			l.Info("welcome email task completed",
+				"recipient", user.UserID,
+				"duration", time.Since(start).String(),
+			)
+		}()
 
 		appName := utils.GetEnvOrFile("PROJECT_NAME")
 		data := map[string]any{

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,6 +41,7 @@ type Config struct {
 func main() {
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
+	var wg sync.WaitGroup
 
 	var logger *slog.Logger
 	if utils.GetEnvOrFile("ENV") == "testing" {
@@ -119,7 +121,7 @@ func main() {
 	psqlService := database.New(conn)
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	apiKeyService := auth.NewApiKeyService(32, 8, config.apiKeyPrefix, psqlService)
-	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService)
+	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService, &wg)
 
 	userService := user.NewUserService(psqlService, config.logger)
 	userHandler := user.NewUserHandler(userService)
@@ -135,7 +137,7 @@ func main() {
 		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
 
-	go gracefulShutdown(conn, httpServer, done)
+	go gracefulShutdown(conn, httpServer, done, &wg, logger)
 
 	log.Printf("The server is starting on: http://%s:%d in %s environment\n", config.domain, config.port, config.environment)
 	err = httpServer.ListenAndServe()
@@ -146,10 +148,16 @@ func main() {
 
 	// Wait for the graceful shutdown to complete
 	<-done
-	slog.Info("Graceful shutdown complete.")
+	logger.Info("Graceful shutdown complete.")
 }
 
-func gracefulShutdown(conn *sql.DB, httpServer *http.Server, done chan bool) {
+func gracefulShutdown(
+	conn *sql.DB,
+	httpServer *http.Server,
+	done chan bool,
+	wg *sync.WaitGroup,
+	logger *slog.Logger,
+) {
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -159,21 +167,22 @@ func gracefulShutdown(conn *sql.DB, httpServer *http.Server, done chan bool) {
 
 	slog.Info("shutting down gracefully, press Ctrl+C again to force")
 
-	// Shutting down database connection
-	if err := db.Close(conn); err != nil {
-		slog.Info("Database connection pool closed successfully")
-	}
-
-	// The context is used to inform the server it has 5 seconds to finish
+	// The context is used to inform the server it has 10 seconds to finish
 	// the request it is currently handling
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := httpServer.Shutdown(ctx); err != nil {
 		slog.Info("Server forced to shutdown with error, ", "Message", err.Error())
 	}
 
-	slog.Info("Server exiting...")
+	logger.Info("completing background tasks")
+	wg.Wait()
 
+	if err := conn.Close(); err != nil {
+		logger.Error("failed to close database connection", "error", err)
+	} else {
+		logger.Info("Database connection disconnected")
+	}
 	// Notify the main goroutine that the shutdown is complete
 	done <- true
 }

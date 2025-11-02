@@ -6,7 +6,6 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -114,13 +113,4 @@ func Health(db *sql.DB) map[string]string {
 	}
 
 	return stats
-}
-
-// Close closes the database connection.
-// It logs a message indicating the disconnection from the specific database.
-// If the connection is successfully closed, it returns nil.
-// If an error occurs while closing the connection, it returns the error.
-func Close(conn *sql.DB) error {
-	slog.Info("Disconnected from database")
-	return conn.Close()
 }
