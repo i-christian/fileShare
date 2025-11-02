@@ -83,5 +83,16 @@ func (m *Mailer) Send(recipient, templatFile string, data any) error {
 	msg.SetBodyString(mail.TypeTextPlain, plainBody.String())
 	msg.AddAlternativeString(mail.TypeTextHTML, htmlBody.String())
 
-	return m.client.DialAndSend(msg)
+	for i := 1; i <= 3; i++ {
+		err = m.client.DialAndSend(msg)
+		if err == nil {
+			return nil
+		}
+
+		if i != 3 {
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+
+	return err
 }

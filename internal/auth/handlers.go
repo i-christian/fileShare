@@ -7,24 +7,28 @@ import (
 	"time"
 
 	"github.com/i-christian/fileShare/internal/database"
+	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
 	"github.com/i-christian/fileShare/internal/validator"
+	"github.com/i-christian/fileShare/internal/worker"
 )
 
 type AuthHandler struct {
 	authService     *AuthService
 	apiKeyService   *ApiKeyService
 	logger          *slog.Logger
+	mailer          *mailer.Mailer
 	refreshTokenTTL time.Duration
 }
 
-func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger) *AuthHandler {
+func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger, mailer *mailer.Mailer) *AuthHandler {
 	return &AuthHandler{
 		authService:     authService,
 		apiKeyService:   apiKeyService,
 		refreshTokenTTL: refreshTokenTTL,
 		logger:          logger,
+		mailer:          mailer,
 	}
 }
 
@@ -60,6 +64,28 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		utils.ServerErrorResponse(w, "failed to create user")
 		return
 	}
+
+	worker.BackgroundTask(h.logger, func(l *slog.Logger) {
+		l.Info("starting welcome email task", "recipient", user.UserID)
+
+		appName := utils.GetEnvOrFile("PROJECT_NAME")
+		data := map[string]any{
+			"AppName":   appName,
+			"FirstName": user.FirstName,
+			"LastName":  user.LastName,
+			"Email":     user.Email,
+		}
+
+		err = h.mailer.Send(user.Email, "user_welcome.tmpl", data)
+		if err != nil {
+			utils.WriteServerError(l, "failed to send an email", err)
+			return
+		}
+
+		l.Info(
+			"successfully sent welcome email", "recipient", user.UserID,
+		)
+	})
 
 	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user}, nil)
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
+	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/router"
 	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
@@ -103,10 +104,22 @@ func main() {
 
 	flag.Parse()
 
+	mailHost := utils.GetEnvOrFile("MAILTRAP_SMTP_HOST")
+	mailPort, _ := strconv.Atoi(utils.GetEnvOrFile("MAILTRAP_SMTP_PORT"))
+	mailUserName := utils.GetEnvOrFile("MAILTRAP_USER")
+	mailPassword := utils.GetEnvOrFile("MAILTRAP_PASSWORD")
+	mailSender := utils.GetEnvOrFile("MAILTRAP_SENDER_EMAIL")
+
+	mailService, err := mailer.New(mailHost, mailPort, mailUserName, mailPassword, mailSender)
+	if err != nil {
+		utils.WriteServerError(logger, "failed to setup mail service", err)
+		os.Exit(1)
+	}
+
 	psqlService := database.New(conn)
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	apiKeyService := auth.NewApiKeyService(32, 8, config.apiKeyPrefix, psqlService)
-	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger)
+	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService)
 
 	userService := user.NewUserService(psqlService, config.logger)
 	userHandler := user.NewUserHandler(userService)

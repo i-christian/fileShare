@@ -1,10 +1,9 @@
 {{define "subject"}}Welcome to {{.AppName}}!{{end}}
 
 {{define "plainBody"}}
-Hi,
+Hi {{.FirstName}},
 
-Thanks for signing up for {{.AppName}} account. We're excited to have you on
-board.
+Thanks for signing up for {{.AppName}} account. We're excited to have you on board.
 
 Thanks,
 
@@ -14,19 +13,19 @@ The {{.AppName}} Team
 {{define "htmlBody"}}
 <!doctype html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width" />
-    <meta http-equiv="Content-Type" content="text/html;  charset=UTF-8" />
-  </head>
+  <head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html;  charset=UTF-8" />
+  </head>
 
-  <body>
-    <p>Hi,</p>
-    <p>
-      Thanks for signing up for {{.AppName}} account. We're excited to have you
-      on board.
-    </p>
-    <p>Thanks,</p>
-    <p>The {{.AppName}} Team</p>
-  </body>
+  <body>
+    <p>Hi {{.FirstName}},</p>
+    <p>
+      Thanks for signing up for {{.AppName}} account. We're excited to have you
+      on board.
+    </p>
+    <p>Thanks,</p>
+    <p>The {{.AppName}} Team</p>
+  </body>
 </html>
 {{end}}
