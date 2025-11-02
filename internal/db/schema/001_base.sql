@@ -20,7 +20,8 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_login TIMESTAMPTZ DEFAULT NOW()
+    last_login TIMESTAMPTZ DEFAULT NOW(),
+    version integer NOT NULL DEFAULT 1
 );
 
 -- Create refresh_tokens table
