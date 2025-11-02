@@ -30,15 +30,10 @@ type Config struct {
 	domain          string
 	jwtSecret       string
 	apiKeyPrefix    string
+	environment     string
 	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
-
-	limiter struct {
-		rps     float64
-		burst   int
-		enabled bool
-	}
 }
 
 func main() {
@@ -87,19 +82,24 @@ func main() {
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
 	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
 	domain := utils.GetEnvOrFile("DOMAIN")
+	env := utils.GetEnvOrFile("ENV")
 	config := &Config{
 		port:            port,
 		domain:          domain,
 		jwtSecret:       string(jwtSecret),
+		environment:     env,
 		jwtTTL:          15 * time.Minute,
 		apiKeyPrefix:    apiKeyPrefix,
 		refreshTokenTTL: 7 * 24 * time.Hour,
 		logger:          logger,
 	}
 
-	flag.Float64Var(&config.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
-	flag.IntVar(&config.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
-	flag.BoolVar(&config.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+	routeConfig := &router.RoutesConfig{
+		Domain: config.domain,
+	}
+	flag.Float64Var(&routeConfig.Rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	flag.IntVar(&routeConfig.Burst, "limiter-burst", 4, "Rate limiter maximum burst")
+	flag.BoolVar(&routeConfig.LimiterEnabled, "limiter-enabled", true, "Enable rate limiter")
 
 	flag.Parse()
 
@@ -111,12 +111,6 @@ func main() {
 	userService := user.NewUserService(psqlService, config.logger)
 	userHandler := user.NewUserHandler(userService)
 
-	routeConfig := &router.RoutesConfig{
-		Domain:         config.domain,
-		Rps:            config.limiter.rps,
-		Burst:          config.limiter.burst,
-		LimiterEnabled: config.limiter.enabled,
-	}
 	router := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler)
 
 	httpServer := &http.Server{
@@ -125,12 +119,16 @@ func main() {
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 40 * time.Second,
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
 
-	log.Printf("The server is starting on: http://%s:%s\n", domain, strconv.Itoa(port))
+	go gracefulShutdown(conn, httpServer, done)
+
+	log.Printf("The server is starting on: http://%s:%d in %s environment\n", config.domain, config.port, config.environment)
 	err = httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		panic(fmt.Sprintf("http server error: %s", err))
+		logger.Error(fmt.Sprintf("http server error: %s", err))
+		os.Exit(1)
 	}
 
 	// Wait for the graceful shutdown to complete

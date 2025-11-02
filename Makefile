@@ -44,4 +44,4 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch tailwind-install templ-install
+.PHONY: all build run test clean watch
