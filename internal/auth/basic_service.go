@@ -57,7 +57,6 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		Email:      user.Email,
 		IsVerified: user.IsVerified,
 		Role:       string(user.Role),
-		UpdatedAt:  user.UpdatedAt,
 		LastLogin:  user.LastLogin,
 	}, nil
 }

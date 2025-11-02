@@ -19,6 +19,8 @@ func ValidateUser(v *Validator, user *User) {
 	v.Check(len(user.LastName) > 2 && len(user.LastName) <= 30, "last_name", "must be between 3 to 30 characters long")
 
 	v.Check(user.Password != "", "password", "must be provided")
+	v.Check(len(user.Password) >= 8, "password", "must be atleast 8 bytes long")
+	v.Check(len(user.Password) <= 72, "password", "must not be more than 72 bytes long")
 }
 
 func ValidateBasicLogin(v *Validator, user *User) {

@@ -3,7 +3,6 @@ package auth
 import (
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -16,12 +15,11 @@ var (
 )
 
 type ApiUser struct {
-	UserID     uuid.UUID    `json:"user_id"`
+	LastLogin  sql.NullTime `json:"last_login"`
 	LastName   string       `json:"last_name"`
 	FirstName  string       `json:"first_name"`
 	Email      string       `json:"email"`
-	IsVerified bool         `json:"is_verified"`
 	Role       string       `json:"role"`
-	UpdatedAt  time.Time    `json:"updated_at"`
-	LastLogin  sql.NullTime `json:"last_login"`
+	UserID     uuid.UUID    `json:"user_id"`
+	IsVerified bool         `json:"is_verified"`
 }
