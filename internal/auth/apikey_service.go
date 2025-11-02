@@ -30,29 +30,13 @@ func NewApiKeyService(apiKeySecretLen, apiKeyPrefixLen uint8, apiKeyPrefix strin
 	}
 }
 
-var alphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-// generateSecureString creates a cryptographically secure random string.
-func generateSecureString(length uint8) (string, error) {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	runes := make([]rune, length)
-	for i, v := range b {
-		runes[i] = alphabet[int(v)%len(alphabet)]
-	}
-	return string(runes), nil
-}
-
 // GenerateAPIKey creates a new API key for a user, stores its hash,
 // and returns the full, unhashed key one time.
 func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, name string, expires time.Time, scope []database.ApiScope) (string, error) {
 	var prefix string
 	var err error
 	for i := 0; i < 5; i++ {
-		randomPart, err := generateSecureString(s.apiKeyPrefixLen)
+		randomPart, err := security.GenerateSecureString(s.apiKeyPrefixLen)
 		if err != nil {
 			return "", err
 		}
@@ -71,7 +55,7 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 		}
 	}
 
-	secret, err := generateSecureString(s.apiKeySecretLen)
+	secret, err := security.GenerateSecureString(s.apiKeySecretLen)
 	if err != nil {
 		return "", err
 	}

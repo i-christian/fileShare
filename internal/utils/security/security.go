@@ -1,9 +1,7 @@
-// Package security provides utility functions for hashing, password
-// verification, user context management, and generation of short, deterministic
-// project prefixes for API keys or identifiers.
 package security
 
 import (
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"net"
@@ -17,6 +15,22 @@ import (
 type contextKey string
 
 const UserIDKey contextKey = "userID"
+
+var alphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+// GenerateSecureString creates a cryptographically secure random string.
+func GenerateSecureString(length uint8) (string, error) {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	runes := make([]rune, length)
+	for i, v := range b {
+		runes[i] = alphabet[int(v)%len(alphabet)]
+	}
+	return string(runes), nil
+}
 
 // GetUserFromContext retrieves the user ID (UUID) from the given HTTP request context.
 //
