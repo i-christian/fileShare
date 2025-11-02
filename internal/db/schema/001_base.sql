@@ -1,5 +1,8 @@
 -- +goose Up
 
+-- Extensions
+CREATE EXTENSION IF NOT EXISTS citext;
+
 -- Types
 CREATE TYPE upload_status AS ENUM ('pending', 'completed', 'failed');
 CREATE TYPE user_role AS ENUM ('admin', 'user');
@@ -11,7 +14,7 @@ CREATE TABLE users (
     user_id UUID PRIMARY KEY DEFAULT uuidv7(),
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email citext NOT NULL UNIQUE,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     role user_role NOT NULL DEFAULT 'user',
     password_hash VARCHAR(255) NOT NULL,
