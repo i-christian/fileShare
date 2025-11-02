@@ -24,14 +24,18 @@ curl -v http://localhost:8080/api/v1/auth/signup \
 
 ```json
 {
-  "user_id":"019a170b-75e0-71a3-8704-7dd53dd2ae5d",
-  "last_name":"Wonderland",
-  "first_name":"Alice",
-  "email":"alice@example.com",
-  "is_verified":false,
-  "role":"user",
-  "updated_at":"2025-10-24T18:26:58.399625+02:00",
-  "last_login":{"Time":"2025-10-24T18:26:58.399625+02:00","Valid":true}
+        "user": {
+                "last_login": {
+                        "Time": "2025-11-02T14:34:12.918644+02:00",
+                        "Valid": true
+                },
+                "last_name": "Wonderland",
+                "first_name": "Alice",
+                "email": "alice@example.com",
+                "role": "user",
+                "user_id": "019a448f-9938-764b-a1c8-a22b8ce3bd45",
+                "is_verified": false
+        }
 }
 ```
 
@@ -52,16 +56,18 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 ```json
 {
-  "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwiZXhwIjoxNzYxMjI1NDYwLCJmaXJzdF9uYW1lIjoiQWxpY2UiLCJpYXQiOjE3NjEyMjQ1NjAsImxhc3RfbmFtZSI6IldvbmRlcmxhbmQiLCJzdWIiOiIwMTlhMTEyOC00ZjE4LTc1YmQtODczMS1iZDZiOGMwMmFlODYifQ.7dxSsj9D7-2LMqSo-GEm2r_iISUsgqGLtMu4RknImUc",
-  "refresh_token":"ea3b4681-2df7-41f4-a3c1-0ff66653fa9a"
+        "tokens": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwiZXhwIjoxNzYyMDg3ODEzLCJmaXJzdF9uYW1lIjoiQWxpY2UiLCJpYXQiOjE3NjIwODY5MTMsImxhc3RfbmFtZSI6IldvbmRlcmxhbmQiLCJzdWIiOiIwMTlhNDQ4Zi05OTM4LTc2NGItYTFjOC1hMjJiOGNlM2JkNDUifQ.fFB1xqhvfIjQb2j0tOBfbGgSrY2lVJ8QPeJDGBfOnrU",
+                "refresh_token": "7e7ec54e-d4f5-437f-9753-c58457cca384"
+        }
 }
 ```
 
 👉 Save these tokens as temporary environment variables (they’ll disappear when the shell closes):
 
 ```bash
-export ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwiZXhwIjoxNzYxMjI1NDYwLCJmaXJzdF9uYW1lIjoiQWxpY2UiLCJpYXQiOjE3NjEyMjQ1NjAsImxhc3RfbmFtZSI6IldvbmRlcmxhbmQiLCJzdWIiOiIwMTlhMTEyOC00ZjE4LTc1YmQtODczMS1iZDZiOGMwMmFlODYifQ.7dxSsj9D7-2LMqSo-GEm2r_iISUsgqGLtMu4RknImUc"
-export REFRESH_TOKEN="ea3b4681-2df7-41f4-a3c1-0ff66653fa9a"
+export ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwiZXhwIjoxNzYyMDg3ODEzLCJmaXJzdF9uYW1lIjoiQWxpY2UiLCJpYXQiOjE3NjIwODY5MTMsImxhc3RfbmFtZSI6IldvbmRlcmxhbmQiLCJzdWIiOiIwMTlhNDQ4Zi05OTM4LTc2NGItYTFjOC1hMjJiOGNlM2JkNDUifQ.fFB1xqhvfIjQb2j0tOBfbGgSrY2lVJ8QPeJDGBfOnrU"
+export REFRESH_TOKEN="7e7ec54e-d4f5-437f-9753-c58457cca384"
 ```
 
 ---
@@ -77,12 +83,14 @@ curl -X GET http://localhost:8080/api/v1/user/me \
 
 ```json
 {
-  "user_id":"019a1b18-609c-723b-b20e-903b83d73941",
-  "email":"alice@example.com",
-  "first_name":"Alice",
-  "last_name":"Wonderland",
-  "is_verified":false,
-  "role":"user"
+        "user": {
+                "user_id": "019a448f-9938-764b-a1c8-a22b8ce3bd45",
+                "email": "alice@example.com",
+                "first_name": "Alice",
+                "last_name": "Wonderland",
+                "is_verified": false,
+                "role": "user"
+        }
 }
 ```
 

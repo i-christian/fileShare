@@ -61,7 +61,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = utils.WriteJSON(w, http.StatusCreated, user, nil)
+	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.logger, "failed to encode json response", err)
@@ -102,7 +102,7 @@ func (h *AuthHandler) LoginWithRefresh(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	}
 
-	err = utils.WriteJSON(w, http.StatusOK, data, nil)
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"tokens": data}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.logger, "failed to encode a json response", err)
@@ -132,7 +132,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = utils.WriteJSON(w, http.StatusOK, map[string]string{"access_token": accessToken}, nil)
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"access_token": accessToken}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.logger, "failed to encode json response", err)
@@ -198,7 +198,7 @@ func (h *AuthHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = utils.WriteJSON(w, http.StatusCreated, map[string]string{
+	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
 		"apiKey": fullKey,
 	}, nil)
 	if err != nil {

@@ -13,7 +13,7 @@ var (
 
 // WriteErrorJSON returns an error in json format to the client
 func WriteErrorJSON(w http.ResponseWriter, status int, msg any) {
-	WriteJSON(w, status, map[string]any{"error": msg}, nil)
+	WriteJSON(w, status, Envelope{"error": msg}, nil)
 }
 
 // BadRequestResponse is a wrapper on WriteErrorJSON function which handles bad request errors to client

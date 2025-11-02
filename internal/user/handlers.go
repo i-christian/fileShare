@@ -31,7 +31,7 @@ func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = utils.WriteJSON(w, http.StatusOK, userDetails, nil)
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"user": userDetails}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.userService.logger, "failed to encode a json response", err)

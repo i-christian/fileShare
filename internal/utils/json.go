@@ -11,8 +11,10 @@ import (
 
 const maxBodySize = 1 << 20
 
+type Envelope map[string]any
+
 // WriteJSON writes a JSON response with the given status code and payload.
-func WriteJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
+func WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.Header) error {
 	if data == nil {
 		return errors.New("response data is empty")
 	}
