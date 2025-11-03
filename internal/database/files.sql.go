@@ -16,7 +16,7 @@ import (
 const createFile = `-- name: CreateFile :one
 insert into files (user_id, filename, storage_key, mime_type, size_bytes, checksum)
     values($1, $2, $3, $4, $5, $6)
-returning file_id, user_id, filename, storage_key, mime_type, size_bytes, visibility, thumbnail_key, checksum, tags, is_deleted, deleted_at, created_at, updated_at
+returning file_id, user_id, filename, storage_key, mime_type, size_bytes, visibility, thumbnail_key, checksum, tags, is_deleted, deleted_at, created_at, updated_at, version
 `
 
 type CreateFileParams struct {
@@ -53,6 +53,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }

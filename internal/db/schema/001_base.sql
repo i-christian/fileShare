@@ -6,6 +6,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- Types
 CREATE TYPE upload_status AS ENUM ('pending', 'completed', 'failed');
 CREATE TYPE user_role AS ENUM ('admin', 'user');
+CREATE TYPE token_purpose AS ENUM ('email_verification', 'password_reset');
 CREATE TYPE file_visibility AS ENUM ('public', 'private');
 CREATE TYPE api_scope AS ENUM ('read', 'write', 'super');
 
@@ -34,20 +35,11 @@ CREATE TABLE refresh_tokens (
     revoked BOOLEAN NOT NULL DEFAULT FALSE
 );
 
---  Email verification tokens
-CREATE TABLE email_verification_tokens (
+--  Action Tokens - Used for email verifications, password resets,
+CREATE TABLE action_tokens (
     token_id    UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    token       VARCHAR(255) UNIQUE NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at  TIMESTAMPTZ NOT NULL,
-    used        BOOLEAN NOT NULL DEFAULT FALSE
-);
-
---  Password reset tokens
-CREATE TABLE password_reset_tokens (
-    token_id    UUID PRIMARY KEY DEFAULT uuidv7(),
-    user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    purpose     token_purpose NOT NULL,
     token       VARCHAR(255) UNIQUE NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at  TIMESTAMPTZ NOT NULL,
@@ -116,21 +108,28 @@ CREATE TABLE upload_sessions (
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
+
 CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
-CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
+
+CREATE INDEX idx_action_tokens_user_id ON action_tokens(user_id);
+CREATE INDEX idx_action_tokens_expires_at ON action_tokens (expires_at);
+
 CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_visibility ON files(visibility);
 CREATE INDEX idx_files_checksum ON files(checksum);
 CREATE INDEX idx_files_is_deleted ON files(is_deleted) WHERE is_deleted = TRUE;
 CREATE INDEX idx_files_tags_gin ON files USING GIN (tags);
+
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
 CREATE INDEX idx_api_keys_is_revoked ON api_keys(is_revoked);
+
 CREATE INDEX idx_share_links_file_id ON share_links(file_id);
 CREATE INDEX idx_share_links_token ON share_links(token);
-CREATE INDEX idx_upload_sessions_user_id ON upload_sessions(user_id);
+CREATE INDEX idx_share_links_expires_at ON share_links (expires_at);
 
+CREATE INDEX idx_upload_sessions_user_id ON upload_sessions(user_id);
 
 -- +goose Down
 -- Drop tables
@@ -138,8 +137,7 @@ DROP TABLE IF EXISTS upload_sessions;
 DROP TABLE IF EXISTS share_links;
 DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS api_keys;
-DROP TABLE IF EXISTS password_reset_tokens;
-DROP TABLE IF EXISTS email_verification_tokens;
+DROP TABLE IF EXISTS action_tokens;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
 

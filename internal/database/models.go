@@ -99,6 +99,48 @@ func (ns NullFileVisibility) Value() (driver.Value, error) {
 	return string(ns.FileVisibility), nil
 }
 
+type TokenPurpose string
+
+const (
+	TokenPurposeEmailVerification TokenPurpose = "email_verification"
+	TokenPurposePasswordReset     TokenPurpose = "password_reset"
+)
+
+func (e *TokenPurpose) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TokenPurpose(s)
+	case string:
+		*e = TokenPurpose(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TokenPurpose: %T", src)
+	}
+	return nil
+}
+
+type NullTokenPurpose struct {
+	TokenPurpose TokenPurpose `json:"token_purpose"`
+	Valid        bool         `json:"valid"` // Valid is true if TokenPurpose is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTokenPurpose) Scan(value interface{}) error {
+	if value == nil {
+		ns.TokenPurpose, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TokenPurpose.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTokenPurpose) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TokenPurpose), nil
+}
+
 type UploadStatus string
 
 const (
@@ -184,6 +226,16 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type ActionToken struct {
+	TokenID   uuid.UUID    `json:"token_id"`
+	UserID    uuid.UUID    `json:"user_id"`
+	Purpose   TokenPurpose `json:"purpose"`
+	Token     string       `json:"token"`
+	CreatedAt time.Time    `json:"created_at"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	Used      bool         `json:"used"`
+}
+
 type ApiKey struct {
 	ApiKeyID   uuid.UUID    `json:"api_key_id"`
 	UserID     uuid.UUID    `json:"user_id"`
@@ -198,15 +250,6 @@ type ApiKey struct {
 	ExpiresAt  time.Time    `json:"expires_at"`
 	LastUsedAt sql.NullTime `json:"last_used_at"`
 	LastUsedIp pqtype.Inet  `json:"last_used_ip"`
-}
-
-type EmailVerificationToken struct {
-	TokenID   uuid.UUID `json:"token_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Token     string    `json:"token"`
-	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Used      bool      `json:"used"`
 }
 
 type File struct {
@@ -224,15 +267,7 @@ type File struct {
 	DeletedAt    sql.NullTime   `json:"deleted_at"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
-}
-
-type PasswordResetToken struct {
-	TokenID   uuid.UUID `json:"token_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Token     string    `json:"token"`
-	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Used      bool      `json:"used"`
+	Version      int32          `json:"version"`
 }
 
 type RefreshToken struct {
@@ -277,4 +312,5 @@ type User struct {
 	CreatedAt    time.Time    `json:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at"`
 	LastLogin    sql.NullTime `json:"last_login"`
+	Version      int32        `json:"version"`
 }

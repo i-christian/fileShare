@@ -31,7 +31,7 @@ insert into users (first_name, last_name, email,  password_hash)
     values($1, $2, $3, $4)
 on conflict(email)
     do nothing
-returning user_id, last_name, first_name, email, is_verified, role, password_hash, created_at, updated_at, last_login
+returning user_id, last_name, first_name, email, is_verified, role, password_hash, created_at, updated_at, last_login, version
 `
 
 type CreateUserParams struct {
@@ -61,6 +61,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLogin,
+		&i.Version,
 	)
 	return i, err
 }
