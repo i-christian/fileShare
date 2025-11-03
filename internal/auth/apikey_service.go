@@ -16,13 +16,11 @@ import (
 type ApiKeyService struct {
 	queries         *database.Queries
 	apiKeyPrefix    string
-	apiKeySecretLen uint8
 	apiKeyPrefixLen uint8
 }
 
-func NewApiKeyService(apiKeySecretLen, apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries) *ApiKeyService {
+func NewApiKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries) *ApiKeyService {
 	return &ApiKeyService{
-		apiKeySecretLen: apiKeySecretLen,
 		apiKeyPrefixLen: apiKeyPrefixLen,
 		apiKeyPrefix:    apiKeyPrefix,
 		queries:         queries,
@@ -35,11 +33,9 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 	var prefix string
 	var err error
 	for i := 0; i < 5; i++ {
-		randomPart, err := security.GenerateSecureString(s.apiKeyPrefixLen)
-		if err != nil {
-			return "", err
-		}
-		prefix = s.apiKeyPrefix + randomPart
+		plainText, _ := security.GenerateStringAndHash()
+
+		prefix = s.apiKeyPrefix + plainText[:s.apiKeyPrefixLen]
 
 		count, err := s.queries.CheckIfAPIKeyExists(ctx, prefix)
 		if err != nil {
@@ -54,11 +50,7 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 		}
 	}
 
-	secret, err := security.GenerateSecureString(s.apiKeySecretLen)
-	if err != nil {
-		return "", err
-	}
-
+	secret, _ := security.GenerateStringAndHash()
 	keyHash, err := security.HashPassword(secret)
 	if err != nil {
 		return "", err

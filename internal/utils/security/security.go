@@ -17,30 +17,14 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 
-var alphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-// GenerateSecureString creates a cryptographically secure random string.
-func GenerateSecureString(length uint8) (string, error) {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	runes := make([]rune, length)
-	for i, v := range b {
-		runes[i] = alphabet[int(v)%len(alphabet)]
-	}
-	return string(runes), nil
-}
-
-// GenerateTokenHash creates a cryptographically secure 32 byte token hash, and a 26 byte plainText string
-func GenerateTokenHash() (tokenHash []byte, plainText string) {
+// GenerateStringAndHash creates a cryptographically secure 32 byte token hash, and a 26 byte plainText string
+func GenerateStringAndHash() (plainText string, tokenHash []byte) {
 	plainText = rand.Text()
 	hash := sha256.Sum256([]byte(plainText))
 
 	tokenHash = hash[:]
 
-	return tokenHash, plainText
+	return plainText, tokenHash
 }
 
 // GetUserFromContext retrieves the user ID (UUID) from the given HTTP request context.
