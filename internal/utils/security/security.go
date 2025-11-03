@@ -17,6 +17,18 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 
+// ShortProjectPrefix generates a short, deterministic character string based on
+// the given project name.
+//
+// Example:
+//
+//	ShortProjectPrefix("FileShare") → "file-9a4f"
+func ShortProjectPrefix(projectName string) string {
+	name := strings.ToLower(projectName)
+	sum := sha1.Sum([]byte(name))
+	return name[:min(2, len(name))] + hex.EncodeToString(sum[:2])
+}
+
 // GenerateStringAndHash creates a cryptographically secure 32 byte token hash, and a 26 byte plainText string
 func GenerateStringAndHash() (plainText string, tokenHash []byte) {
 	plainText = rand.Text()
@@ -46,17 +58,6 @@ func GetIPAddress(r *http.Request) (string, error) {
 	return host, nil
 }
 
-// ShortProjectPrefix generates a short, deterministic character string based on
-// the given project name.
-//
-// Example:
-//
-//	ShortProjectPrefix("FileShare") → "file-9a4f"
-func ShortProjectPrefix(projectName string) string {
-	name := strings.ToLower(projectName)
-	sum := sha1.Sum([]byte(name))
-	return name[:min(2, len(name))] + hex.EncodeToString(sum[:2])
-}
 
 // HashPassword takes a plaintext password and returns its bcrypt hash.
 func HashPassword(password string) (string, error) {

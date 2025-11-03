@@ -81,11 +81,12 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 		appName := utils.GetEnvOrFile("PROJECT_NAME")
 		data := map[string]any{
-			"AppName":   appName,
-			"FirstName": user.FirstName,
-			"LastName":  user.LastName,
-			"Email":     user.Email,
-			"Year":      time.Now().Year(),
+			"AppName":         appName,
+			"FirstName":       user.FirstName,
+			"LastName":        user.LastName,
+			"Email":           user.Email,
+			"ActivationToken": user.ActivationToken,
+			"Year":            time.Now().Year(),
 		}
 
 		err = h.mailer.Send(user.Email, "user_welcome.tmpl", data)

@@ -50,14 +50,23 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		}
 	}
 
+	plainText, hashByte := security.GenerateStringAndHash()
+
+	err = s.queries.CreateActionToken(ctx, database.CreateActionTokenParams{
+		UserID:    user.UserID,
+		Purpose:   database.TokenPurposeEmailVerification,
+		TokenHash: hashByte,
+	})
+
 	return ApiUser{
-		UserID:     user.UserID,
-		LastName:   user.LastName,
-		FirstName:  user.FirstName,
-		Email:      user.Email,
-		IsVerified: user.IsVerified,
-		Role:       string(user.Role),
-		LastLogin:  user.LastLogin,
+		UserID:          user.UserID,
+		LastName:        user.LastName,
+		FirstName:       user.FirstName,
+		Email:           user.Email,
+		IsVerified:      user.IsVerified,
+		ActivationToken: plainText,
+		Role:            string(user.Role),
+		LastLogin:       user.LastLogin,
 	}, nil
 }
 

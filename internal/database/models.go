@@ -230,7 +230,7 @@ type ActionToken struct {
 	TokenID   uuid.UUID    `json:"token_id"`
 	UserID    uuid.UUID    `json:"user_id"`
 	Purpose   TokenPurpose `json:"purpose"`
-	Token     string       `json:"token"`
+	TokenHash []byte       `json:"token_hash"`
 	CreatedAt time.Time    `json:"created_at"`
 	ExpiresAt time.Time    `json:"expires_at"`
 	Used      bool         `json:"used"`
