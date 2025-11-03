@@ -24,6 +24,9 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.activateUserEmailStmt, err = db.PrepareContext(ctx, activateUserEmail); err != nil {
+		return nil, fmt.Errorf("error preparing query ActivateUserEmail: %w", err)
+	}
 	if q.checkIfAPIKeyExistsStmt, err = db.PrepareContext(ctx, checkIfAPIKeyExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfAPIKeyExists: %w", err)
 	}
@@ -45,11 +48,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
 	}
+	if q.deleteActionTokenStmt, err = db.PrepareContext(ctx, deleteActionToken); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteActionToken: %w", err)
+	}
 	if q.deleteApiKeyStmt, err = db.PrepareContext(ctx, deleteApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteApiKey: %w", err)
 	}
 	if q.deleteRefreshTokenStmt, err = db.PrepareContext(ctx, deleteRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRefreshToken: %w", err)
+	}
+	if q.getActionTokenForUserStmt, err = db.PrepareContext(ctx, getActionTokenForUser); err != nil {
+		return nil, fmt.Errorf("error preparing query GetActionTokenForUser: %w", err)
 	}
 	if q.getApiKeyByPrefixStmt, err = db.PrepareContext(ctx, getApiKeyByPrefix); err != nil {
 		return nil, fmt.Errorf("error preparing query GetApiKeyByPrefix: %w", err)
@@ -80,6 +89,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
+	if q.activateUserEmailStmt != nil {
+		if cerr := q.activateUserEmailStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing activateUserEmailStmt: %w", cerr)
+		}
+	}
 	if q.checkIfAPIKeyExistsStmt != nil {
 		if cerr := q.checkIfAPIKeyExistsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing checkIfAPIKeyExistsStmt: %w", cerr)
@@ -115,6 +129,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
 		}
 	}
+	if q.deleteActionTokenStmt != nil {
+		if cerr := q.deleteActionTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteActionTokenStmt: %w", cerr)
+		}
+	}
 	if q.deleteApiKeyStmt != nil {
 		if cerr := q.deleteApiKeyStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteApiKeyStmt: %w", cerr)
@@ -123,6 +142,11 @@ func (q *Queries) Close() error {
 	if q.deleteRefreshTokenStmt != nil {
 		if cerr := q.deleteRefreshTokenStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteRefreshTokenStmt: %w", cerr)
+		}
+	}
+	if q.getActionTokenForUserStmt != nil {
+		if cerr := q.getActionTokenForUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getActionTokenForUserStmt: %w", cerr)
 		}
 	}
 	if q.getApiKeyByPrefixStmt != nil {
@@ -202,47 +226,53 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                       DBTX
-	tx                       *sql.Tx
-	checkIfAPIKeyExistsStmt  *sql.Stmt
-	checkIfEmailExistsStmt   *sql.Stmt
-	createActionTokenStmt    *sql.Stmt
-	createApiKeyStmt         *sql.Stmt
-	createFileStmt           *sql.Stmt
-	createRefreshTokenStmt   *sql.Stmt
-	createUserStmt           *sql.Stmt
-	deleteApiKeyStmt         *sql.Stmt
-	deleteRefreshTokenStmt   *sql.Stmt
-	getApiKeyByPrefixStmt    *sql.Stmt
-	getRefreshTokenStmt      *sql.Stmt
-	getUserByEmailStmt       *sql.Stmt
-	getUserByIDStmt          *sql.Stmt
-	listApiKeysByUserStmt    *sql.Stmt
-	revokeApiKeyStmt         *sql.Stmt
-	revokeRefreshTokenStmt   *sql.Stmt
-	updateApiKeyLastUsedStmt *sql.Stmt
+	db                        DBTX
+	tx                        *sql.Tx
+	activateUserEmailStmt     *sql.Stmt
+	checkIfAPIKeyExistsStmt   *sql.Stmt
+	checkIfEmailExistsStmt    *sql.Stmt
+	createActionTokenStmt     *sql.Stmt
+	createApiKeyStmt          *sql.Stmt
+	createFileStmt            *sql.Stmt
+	createRefreshTokenStmt    *sql.Stmt
+	createUserStmt            *sql.Stmt
+	deleteActionTokenStmt     *sql.Stmt
+	deleteApiKeyStmt          *sql.Stmt
+	deleteRefreshTokenStmt    *sql.Stmt
+	getActionTokenForUserStmt *sql.Stmt
+	getApiKeyByPrefixStmt     *sql.Stmt
+	getRefreshTokenStmt       *sql.Stmt
+	getUserByEmailStmt        *sql.Stmt
+	getUserByIDStmt           *sql.Stmt
+	listApiKeysByUserStmt     *sql.Stmt
+	revokeApiKeyStmt          *sql.Stmt
+	revokeRefreshTokenStmt    *sql.Stmt
+	updateApiKeyLastUsedStmt  *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                       tx,
-		tx:                       tx,
-		checkIfAPIKeyExistsStmt:  q.checkIfAPIKeyExistsStmt,
-		checkIfEmailExistsStmt:   q.checkIfEmailExistsStmt,
-		createActionTokenStmt:    q.createActionTokenStmt,
-		createApiKeyStmt:         q.createApiKeyStmt,
-		createFileStmt:           q.createFileStmt,
-		createRefreshTokenStmt:   q.createRefreshTokenStmt,
-		createUserStmt:           q.createUserStmt,
-		deleteApiKeyStmt:         q.deleteApiKeyStmt,
-		deleteRefreshTokenStmt:   q.deleteRefreshTokenStmt,
-		getApiKeyByPrefixStmt:    q.getApiKeyByPrefixStmt,
-		getRefreshTokenStmt:      q.getRefreshTokenStmt,
-		getUserByEmailStmt:       q.getUserByEmailStmt,
-		getUserByIDStmt:          q.getUserByIDStmt,
-		listApiKeysByUserStmt:    q.listApiKeysByUserStmt,
-		revokeApiKeyStmt:         q.revokeApiKeyStmt,
-		revokeRefreshTokenStmt:   q.revokeRefreshTokenStmt,
-		updateApiKeyLastUsedStmt: q.updateApiKeyLastUsedStmt,
+		db:                        tx,
+		tx:                        tx,
+		activateUserEmailStmt:     q.activateUserEmailStmt,
+		checkIfAPIKeyExistsStmt:   q.checkIfAPIKeyExistsStmt,
+		checkIfEmailExistsStmt:    q.checkIfEmailExistsStmt,
+		createActionTokenStmt:     q.createActionTokenStmt,
+		createApiKeyStmt:          q.createApiKeyStmt,
+		createFileStmt:            q.createFileStmt,
+		createRefreshTokenStmt:    q.createRefreshTokenStmt,
+		createUserStmt:            q.createUserStmt,
+		deleteActionTokenStmt:     q.deleteActionTokenStmt,
+		deleteApiKeyStmt:          q.deleteApiKeyStmt,
+		deleteRefreshTokenStmt:    q.deleteRefreshTokenStmt,
+		getActionTokenForUserStmt: q.getActionTokenForUserStmt,
+		getApiKeyByPrefixStmt:     q.getApiKeyByPrefixStmt,
+		getRefreshTokenStmt:       q.getRefreshTokenStmt,
+		getUserByEmailStmt:        q.getUserByEmailStmt,
+		getUserByIDStmt:           q.getUserByIDStmt,
+		listApiKeysByUserStmt:     q.listApiKeysByUserStmt,
+		revokeApiKeyStmt:          q.revokeApiKeyStmt,
+		revokeRefreshTokenStmt:    q.revokeRefreshTokenStmt,
+		updateApiKeyLastUsedStmt:  q.updateApiKeyLastUsedStmt,
 	}
 }

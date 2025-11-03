@@ -56,6 +56,7 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		UserID:    user.UserID,
 		Purpose:   database.TokenPurposeEmailVerification,
 		TokenHash: hashByte,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
 
 	return ApiUser{

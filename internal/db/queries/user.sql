@@ -19,6 +19,15 @@ select
 from users
     where email = $1;
 
+-- name: ActivateUserEmail :one
+update users
+    set
+        is_verified = true,
+        version = version + 1    
+where user_id = $1
+    and version = $2
+    returning is_verified;
+
 -- name: CheckIfEmailExists :one
 select
     count(email)

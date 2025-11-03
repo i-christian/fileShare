@@ -72,6 +72,32 @@ export REFRESH_TOKEN="7e7ec54e-d4f5-437f-9753-c58457cca384"
 
 ---
 
+### Verify user email
+```bash
+curl -X PUT http://localhost:8080/api/v1/user/activated \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"\
+  -d '{
+       "token": "WKTJKOIUVTUXOBZ4EFO66FB55V"
+  }'
+```
+
+**Response (if token valid):**
+```
+  {
+        "user": {
+                "user_id": "019a4b3e-18d6-74a3-991d-0c42f2d344ec",
+                "email": "alice@example.com",
+                "first_name": "Alice",
+                "last_name": "Wonderland",
+                "is_verified": true,
+                "role": "user"
+        }
+}
+```
+
+---
+
 ## 3️⃣ Access a protected endpoint using the access token
 
 ```bash

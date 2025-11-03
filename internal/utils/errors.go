@@ -9,6 +9,8 @@ import (
 var (
 	ErrUnexpectedError = errors.New("A server error occured while processing the request. Our team has been notified")
 	ErrRecordExists    = errors.New("The record already exist in the database")
+	ErrRecordNotFound  = errors.New("The record does not exist")
+	ErrEditConflict    = errors.New("edit confict")
 )
 
 // WriteErrorJSON returns an error in json format to the client
@@ -36,8 +38,14 @@ func FailedValidationResponse(w http.ResponseWriter, msg map[string]string) {
 	WriteErrorJSON(w, http.StatusUnprocessableEntity, msg)
 }
 
+// RateLimitExcededResponse returns an error if too many requests are made from a single IP
 func RateLimitExcededResponse(w http.ResponseWriter) {
 	WriteErrorJSON(w, http.StatusTooManyRequests, "rate limit exceded")
+}
+
+func EditConflictResponse(w http.ResponseWriter) {
+	message := "unable to update the record due to an edit conflict, please try again"
+	WriteErrorJSON(w, http.StatusConflict, message)
 }
 
 // WriteServerLog logs server errors to the configured slog.logger for the application

@@ -12,6 +12,28 @@ import (
 	"github.com/google/uuid"
 )
 
+const activateUserEmail = `-- name: ActivateUserEmail :one
+update users
+    set
+        is_verified = true,
+        version = version + 1    
+where user_id = $1
+    and version = $2
+    returning is_verified
+`
+
+type ActivateUserEmailParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Version int32     `json:"version"`
+}
+
+func (q *Queries) ActivateUserEmail(ctx context.Context, arg ActivateUserEmailParams) (bool, error) {
+	row := q.queryRow(ctx, q.activateUserEmailStmt, activateUserEmail, arg.UserID, arg.Version)
+	var is_verified bool
+	err := row.Scan(&is_verified)
+	return is_verified, err
+}
+
 const checkIfEmailExists = `-- name: CheckIfEmailExists :one
 select
     count(email)

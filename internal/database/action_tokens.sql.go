@@ -15,7 +15,7 @@ import (
 const createActionToken = `-- name: CreateActionToken :exec
 insert into action_tokens(user_id, purpose, token_hash, expires_at)
     values($1, $2, $3, $4)
-returning token_id, user_id, purpose, token_hash, created_at, expires_at, used
+returning token_hash, user_id, purpose, created_at, expires_at, used
 `
 
 type CreateActionTokenParams struct {
@@ -33,4 +33,77 @@ func (q *Queries) CreateActionToken(ctx context.Context, arg CreateActionTokenPa
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const deleteActionToken = `-- name: DeleteActionToken :exec
+delete from action_tokens
+    where token_hash = $1
+        and user_id = $2
+`
+
+type DeleteActionTokenParams struct {
+	TokenHash []byte    `json:"token_hash"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteActionToken(ctx context.Context, arg DeleteActionTokenParams) error {
+	_, err := q.exec(ctx, q.deleteActionTokenStmt, deleteActionToken, arg.TokenHash, arg.UserID)
+	return err
+}
+
+const getActionTokenForUser = `-- name: GetActionTokenForUser :one
+select
+    at.token_hash,
+    at.used,
+    at.expires_at,
+    at.purpose,
+    u.is_verified,
+    u.email,
+    u.version,
+    u.user_id
+from action_tokens at
+    join users u using (user_id)
+where at.token_hash = $1
+    and at.purpose = $2
+    and u.user_id = $3
+    and at.expires_at > $4
+`
+
+type GetActionTokenForUserParams struct {
+	TokenHash []byte       `json:"token_hash"`
+	Purpose   TokenPurpose `json:"purpose"`
+	UserID    uuid.UUID    `json:"user_id"`
+	ExpiresAt time.Time    `json:"expires_at"`
+}
+
+type GetActionTokenForUserRow struct {
+	TokenHash  []byte       `json:"token_hash"`
+	Used       bool         `json:"used"`
+	ExpiresAt  time.Time    `json:"expires_at"`
+	Purpose    TokenPurpose `json:"purpose"`
+	IsVerified bool         `json:"is_verified"`
+	Email      string       `json:"email"`
+	Version    int32        `json:"version"`
+	UserID     uuid.UUID    `json:"user_id"`
+}
+
+func (q *Queries) GetActionTokenForUser(ctx context.Context, arg GetActionTokenForUserParams) (GetActionTokenForUserRow, error) {
+	row := q.queryRow(ctx, q.getActionTokenForUserStmt, getActionTokenForUser,
+		arg.TokenHash,
+		arg.Purpose,
+		arg.UserID,
+		arg.ExpiresAt,
+	)
+	var i GetActionTokenForUserRow
+	err := row.Scan(
+		&i.TokenHash,
+		&i.Used,
+		&i.ExpiresAt,
+		&i.Purpose,
+		&i.IsVerified,
+		&i.Email,
+		&i.Version,
+		&i.UserID,
+	)
+	return i, err
 }
