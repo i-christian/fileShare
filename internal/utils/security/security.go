@@ -3,6 +3,7 @@ package security
 import (
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -30,6 +31,16 @@ func GenerateSecureString(length uint8) (string, error) {
 		runes[i] = alphabet[int(v)%len(alphabet)]
 	}
 	return string(runes), nil
+}
+
+// GenerateTokenHash creates a cryptographically secure 32 byte token hash, and a 26 byte plainText string
+func GenerateTokenHash() (tokenHash []byte, plainText string) {
+	plainText = rand.Text()
+	hash := sha256.Sum256([]byte(plainText))
+
+	tokenHash = hash[:]
+
+	return tokenHash, plainText
 }
 
 // GetUserFromContext retrieves the user ID (UUID) from the given HTTP request context.

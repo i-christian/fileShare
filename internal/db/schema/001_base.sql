@@ -40,7 +40,7 @@ CREATE TABLE action_tokens (
     token_id    UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     purpose     token_purpose NOT NULL,
-    token       VARCHAR(255) UNIQUE NOT NULL,
+    token_hash  BYTEA UNIQUE NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at  TIMESTAMPTZ NOT NULL,
     used        BOOLEAN NOT NULL DEFAULT FALSE
