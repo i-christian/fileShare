@@ -74,6 +74,7 @@ flowchart LR
 | `POST`   | `/api/v1/auth/signup`         | Register a new user               | ✅         |
 | `POST`   | `/api/v1/auth/login`          | Login and get JWT tokens          | ✅         |
 | `POST`   | `/api/v1/auth/refresh`        | Refresh JWT token                 | ✅         |
+| `PUT`    | `/api/v1/user/activated`      | Verify email                      | ✅         |
 | `GET`    | `/api/v1/user/me`             | Get current user profile          | ✅         |
 | `POST`   | `/api/v1/user/api-keys`       | Create an API Key                 | ✅         |
 | `POST`   | `/api/v1/files/upload`        | Upload new file (supports chunks) | ✅         |
