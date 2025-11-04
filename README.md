@@ -15,7 +15,6 @@ It exposes a **RESTful JSON API** that handles authentication, file uploads, sha
 - ⚙️ **Redis Integration** – Caching, session state, and background job queue.
 - 🧵 **Concurrent Background Workers** – For thumbnails, virus scans, or cleanup tasks.
 - 🧰 **Docker-Ready** – Containerized with Docker Compose for easy setup.
-- 📚 **Swagger/OpenAPI Docs** – Self-documented endpoints for developers.
 
 ---
 
