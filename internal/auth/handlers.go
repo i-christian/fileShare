@@ -179,7 +179,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
-	userID, ok := security.GetUserFromContext(r)
+	user, ok := security.GetUserFromContext(r)
 	if !ok {
 		utils.UnauthorisedResponse(w, "authentication required")
 		return
@@ -230,7 +230,7 @@ func (h *AuthHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		expires = req.Expires
 	}
 
-	fullKey, err := h.apiKeyService.GenerateAPIKey(r.Context(), userID, req.KeyName, expires, newKeyScope())
+	fullKey, err := h.apiKeyService.GenerateAPIKey(r.Context(), user.UserID, req.KeyName, expires, newKeyScope())
 	if err != nil {
 		utils.ServerErrorResponse(w, "could not generate api key")
 		utils.WriteServerError(h.logger, "could not generate api key", err)

@@ -26,7 +26,7 @@ func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userDetails, err := h.userService.GetUserInfo(r.Context(), ctxUser)
+	userDetails, err := h.userService.GetUserInfo(r.Context(), ctxUser.UserID)
 	if err != nil {
 		utils.WriteServerError(h.userService.logger, "failed to get user information", err)
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
@@ -41,7 +41,7 @@ func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request) {
-	userIDFromContext, ok := security.GetUserFromContext(r)
+	userFromContext, ok := security.GetUserFromContext(r)
 	if !ok {
 		utils.UnauthorisedResponse(w, "unauthorized")
 	}
@@ -62,7 +62,7 @@ func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, activated, err := h.userService.ActivateUser(r.Context(), userIDFromContext, input.TokenPlainText, v)
+	_, activated, err := h.userService.ActivateUser(r.Context(), userFromContext.UserID, input.TokenPlainText, v)
 	if !v.Valid() {
 		utils.FailedValidationResponse(w, v.Errors)
 		return
@@ -85,7 +85,7 @@ func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	userDetails, err := h.userService.GetUserInfo(r.Context(), userIDFromContext)
+	userDetails, err := h.userService.GetUserInfo(r.Context(), userFromContext.UserID)
 	if err != nil {
 		utils.WriteServerError(h.userService.logger, "failed to get user information", err)
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())

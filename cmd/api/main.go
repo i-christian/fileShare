@@ -120,7 +120,7 @@ func main() {
 
 	psqlService := database.New(conn)
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
-	apiKeyService := auth.NewApiKeyService(8, config.apiKeyPrefix, psqlService)
+	apiKeyService := auth.NewApiKeyService(8, config.apiKeyPrefix, psqlService, config.logger, &wg)
 	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService, &wg)
 
 	userService := user.NewUserService(psqlService, config.logger)

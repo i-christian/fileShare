@@ -29,10 +29,17 @@ order by created_at desc;
 
 -- name: GetApiKeyByPrefix :one
 select
-    api_key_id,
-    key_hash,
-    user_id
-from api_keys where prefix = $1;
+    ak.api_key_id,
+    ak.key_hash,
+    ak.expires_at,
+    u.user_id,
+    u.first_name,
+    u.last_name,
+    u.role,
+    u.email
+from api_keys ak
+    join users u using(user_id)
+where prefix = $1;
 
 -- name: RevokeApiKey :exec
 update api_keys

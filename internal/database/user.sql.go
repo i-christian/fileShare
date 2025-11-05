@@ -60,7 +60,7 @@ type CreateUserParams struct {
 	FirstName    string `json:"first_name"`
 	LastName     string `json:"last_name"`
 	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
+	PasswordHash string `json:"-"`
 }
 
 // CreateUser adds a new user into the database returning user information.
@@ -96,6 +96,7 @@ select
     last_name,
     password_hash,
     is_verified,
+    role,
     last_login
 from users
     where email = $1
@@ -106,8 +107,9 @@ type GetUserByEmailRow struct {
 	Email        string       `json:"email"`
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
-	PasswordHash string       `json:"password_hash"`
+	PasswordHash string       `json:"-"`
 	IsVerified   bool         `json:"is_verified"`
+	Role         UserRole     `json:"role"`
 	LastLogin    sql.NullTime `json:"last_login"`
 }
 
@@ -122,6 +124,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.LastName,
 		&i.PasswordHash,
 		&i.IsVerified,
+		&i.Role,
 		&i.LastLogin,
 	)
 	return i, err

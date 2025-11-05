@@ -1,14 +1,12 @@
 package middlewares
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
@@ -34,42 +32,36 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 
 			switch scheme {
 			case "Bearer":
-				claims, err := authService.ValidateToken(credential)
+				user, err := authService.ValidateToken(credential)
 				if err != nil {
-					utils.UnauthorisedResponse(w, "invalid or expired token")
+					if errors.Is(err, auth.ErrExpiredToken) {
+						utils.UnauthorisedResponse(w, "token has expired")
+					} else {
+						utils.UnauthorisedResponse(w, "invalid or expired token")
+					}
 					return
 				}
 
-				userIDStr, ok := claims["sub"].(string)
-				if !ok {
-					utils.UnauthorisedResponse(w, "invalid token claims")
-					return
-				}
+				req := security.SetContextUser(r, user)
 
-				userID, err := uuid.Parse(userIDStr)
-				if err != nil {
-					utils.UnauthorisedResponse(w, "invalid userID in token")
-					return
-				}
-
-				ctx := context.WithValue(r.Context(), security.UserIDKey, userID)
-				next.ServeHTTP(w, r.WithContext(ctx))
+				next.ServeHTTP(w, req)
 
 			case "ApiKey":
-				userID, err := apiKeyService.ValidateAPIKey(r.Context(), credential)
+				user, err := apiKeyService.ValidateAPIKey(r.Context(), credential)
 				if err != nil {
 					if errors.Is(err, utils.ErrUnexpectedError) {
 						utils.UnauthorisedResponse(w, utils.ErrUnexpectedError.Error())
 						utils.WriteServerError(authService.Logger, "api key authorisation failed", err)
+						return
 
+					} else {
+						utils.UnauthorisedResponse(w, err.Error())
 					}
-					utils.UnauthorisedResponse(w, err.Error())
-					utils.WriteServerError(authService.Logger, "api key authorisation failed", err)
 					return
 				}
 
-				ctx := context.WithValue(r.Context(), security.UserIDKey, userID)
-				next.ServeHTTP(w, r.WithContext(ctx))
+				req := security.SetContextUser(r, user)
+				next.ServeHTTP(w, req)
 
 			default:
 				utils.UnauthorisedResponse(w, "unsupported authorization scheme")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -71,7 +72,7 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 	}, nil
 }
 
-func (s *AuthService) generateAccessToken(email, firstName, lastName string, userID uuid.UUID) (string, error) {
+func (s *AuthService) generateAccessToken(email, firstName, lastName string, userID uuid.UUID, role string) (string, error) {
 	expirationTime := time.Now().Add(s.accessTokenTTL)
 
 	claims := jwt.MapClaims{
@@ -79,6 +80,7 @@ func (s *AuthService) generateAccessToken(email, firstName, lastName string, use
 		"first_name": firstName,
 		"last_name":  lastName,
 		"email":      email,
+		"role":       role,
 		"exp":        expirationTime.Unix(),
 		"iat":        time.Now().Unix(),
 	}
@@ -93,27 +95,77 @@ func (s *AuthService) generateAccessToken(email, firstName, lastName string, use
 	return tokenString, nil
 }
 
-func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
+// ValidateToken parses a JWT string, validates it, and returns a ContextUser.
+func (s *AuthService) ValidateToken(tokenString string) (*security.ContextUser, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, ErrInvalidToken
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
 		return s.jwtSecret, nil
 	})
+
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken
 		}
-
 		return nil, ErrInvalidToken
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, nil
+		return newUserFromClaims(claims)
 	}
 
 	return nil, ErrInvalidToken
+}
+
+// newUserFromClaims is a helper to parse claims into a ContextUser.
+func newUserFromClaims(claims jwt.MapClaims) (*security.ContextUser, error) {
+	getStringClaim := func(key string) (string, error) {
+		val, ok := claims[key].(string)
+		if !ok || val == "" {
+			return "", ErrInvalidClaims
+		}
+		return val, nil
+	}
+
+	userIDStr, err := getStringClaim("sub")
+	if err != nil {
+		return nil, err 
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil, ErrInvalidClaims
+	}
+
+	firstName, err := getStringClaim("first_name")
+	if err != nil {
+		return nil, err
+	}
+
+	lastName, err := getStringClaim("last_name")
+	if err != nil {
+		return nil, err
+	}
+
+	email, err := getStringClaim("email")
+	if err != nil {
+		return nil, err
+	}
+
+	role, err := getStringClaim("role")
+	if err != nil {
+		return nil, err
+	}
+
+	user := &security.ContextUser{
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
+		Role:      role,
+		UserID:    userID,
+	}
+
+	return user, nil
 }
 
 func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
@@ -126,7 +178,7 @@ func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password stri
 		return "", "", ErrInvalidCredentials
 	}
 
-	accessToken, err = s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID)
+	accessToken, err = s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role))
 	if err != nil {
 		return "", "", err
 	}
@@ -161,7 +213,7 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 		return "", errors.Join(utils.ErrUnexpectedError, err)
 	}
 
-	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID)
+	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role))
 
 	return accessToken, nil
 }

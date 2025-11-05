@@ -89,22 +89,43 @@ func (q *Queries) DeleteApiKey(ctx context.Context, apiKeyID uuid.UUID) error {
 
 const getApiKeyByPrefix = `-- name: GetApiKeyByPrefix :one
 select
-    api_key_id,
-    key_hash,
-    user_id
-from api_keys where prefix = $1
+    ak.api_key_id,
+    ak.key_hash,
+    ak.expires_at,
+    u.user_id,
+    u.first_name,
+    u.last_name,
+    u.role,
+    u.email
+from api_keys ak
+    join users u using(user_id)
+where prefix = $1
 `
 
 type GetApiKeyByPrefixRow struct {
-	ApiKeyID uuid.UUID `json:"api_key_id"`
-	KeyHash  string    `json:"key_hash"`
-	UserID   uuid.UUID `json:"user_id"`
+	ApiKeyID  uuid.UUID `json:"api_key_id"`
+	KeyHash   string    `json:"key_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+	UserID    uuid.UUID `json:"user_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Role      UserRole  `json:"role"`
+	Email     string    `json:"email"`
 }
 
 func (q *Queries) GetApiKeyByPrefix(ctx context.Context, prefix string) (GetApiKeyByPrefixRow, error) {
 	row := q.queryRow(ctx, q.getApiKeyByPrefixStmt, getApiKeyByPrefix, prefix)
 	var i GetApiKeyByPrefixRow
-	err := row.Scan(&i.ApiKeyID, &i.KeyHash, &i.UserID)
+	err := row.Scan(
+		&i.ApiKeyID,
+		&i.KeyHash,
+		&i.ExpiresAt,
+		&i.UserID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Role,
+		&i.Email,
+	)
 	return i, err
 }
 

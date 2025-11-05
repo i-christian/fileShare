@@ -12,6 +12,7 @@ var (
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrExpiredToken       = errors.New("token has expired")
 	ErrEmailInUse         = errors.New("email already in use")
+	ErrInvalidClaims      = errors.New("token contains invalid claims")
 )
 
 type ApiUser struct {

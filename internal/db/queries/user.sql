@@ -15,6 +15,7 @@ select
     last_name,
     password_hash,
     is_verified,
+    role,
     last_login
 from users
     where email = $1;

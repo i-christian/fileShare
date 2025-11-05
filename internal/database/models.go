@@ -307,7 +307,7 @@ type User struct {
 	Email        string       `json:"email"`
 	IsVerified   bool         `json:"is_verified"`
 	Role         UserRole     `json:"role"`
-	PasswordHash string       `json:"password_hash"`
+	PasswordHash string       `json:"-"`
 	CreatedAt    time.Time    `json:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at"`
 	LastLogin    sql.NullTime `json:"last_login"`

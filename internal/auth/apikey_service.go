@@ -4,26 +4,33 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
+	"github.com/i-christian/fileShare/internal/worker"
 )
 
 type ApiKeyService struct {
 	queries         *database.Queries
+	logger          *slog.Logger
+	wg              *sync.WaitGroup
 	apiKeyPrefix    string
 	apiKeyPrefixLen uint8
 }
 
-func NewApiKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries) *ApiKeyService {
+func NewApiKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries, logger *slog.Logger, wg *sync.WaitGroup) *ApiKeyService {
 	return &ApiKeyService{
 		apiKeyPrefixLen: apiKeyPrefixLen,
 		apiKeyPrefix:    apiKeyPrefix,
 		queries:         queries,
+		logger:          logger,
+		wg:              wg,
 	}
 }
 
@@ -74,10 +81,10 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 }
 
 // ValidateAPIKey checks a full API key string
-func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (uuid.UUID, error) {
+func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (*security.ContextUser, error) {
 	parts := strings.SplitN(keyString, "_", 2)
 	if len(parts) != 2 {
-		return uuid.Nil, errors.New("invalid api key format")
+		return nil, errors.New("invalid api key format")
 	}
 
 	prefix := parts[0]
@@ -86,20 +93,41 @@ func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (u
 	dBKey, err := s.queries.GetApiKeyByPrefix(ctx, prefix)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return uuid.Nil, errors.Join(errors.New("invalid api key prefix"), utils.ErrUnexpectedError)
+			return nil, errors.New("invalid api key prefix")
 		}
-		return uuid.Nil, errors.Join(err, utils.ErrUnexpectedError)
+		return nil, errors.Join(err, utils.ErrUnexpectedError)
+	}
+
+	if !dBKey.ExpiresAt.IsZero() && time.Now().After(dBKey.ExpiresAt) {
+		return nil, errors.New("api key has expired")
 	}
 
 	err = security.VerifyPassword(dBKey.KeyHash, secret)
 	if err != nil {
-		return uuid.Nil, errors.New("invalid api key")
+		return nil, errors.New("invalid api key")
 	}
 
-	_ = s.queries.UpdateApiKeyLastUsed(ctx, database.UpdateApiKeyLastUsedParams{
-		ApiKeyID:   dBKey.ApiKeyID,
-		LastUsedAt: sql.NullTime{Time: time.Now(), Valid: true},
+	worker.BackgroundTask(s.wg, s.logger, func(l *slog.Logger) {
+		params := database.UpdateApiKeyLastUsedParams{
+			ApiKeyID:   dBKey.ApiKeyID,
+			LastUsedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		}
+
+		err := s.queries.UpdateApiKeyLastUsed(context.Background(), params)
+		if err != nil {
+			l.Error(
+				"failed to update api key last used time",
+				"error", err,
+				"api_key_id", dBKey.ApiKeyID,
+			)
+		}
 	})
 
-	return dBKey.UserID, nil
+	return &security.ContextUser{
+		FirstName: dBKey.FirstName,
+		LastName:  dBKey.LastName,
+		Email:     dBKey.Email,
+		Role:      string(dBKey.Role),
+		UserID:    dBKey.UserID,
+	}, nil
 }
