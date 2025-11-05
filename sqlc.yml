@@ -13,6 +13,8 @@ sql:
         package: "database"
         out: "internal/database"
         overrides:
+          - column: users.password_hash
+            go_struct_tag: json:"-"
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"
