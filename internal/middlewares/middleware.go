@@ -13,12 +13,20 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// AuthMiddleware function sets the request context as follows:
+//
+// If Authorization header is provided the ContextUser struct containing the corresponding user details will be stored in the request context.
+// Else an AnonymousUser struct will be stored in the request context
 func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeyService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Vary", "Authorization")
+
 			authHeader := r.Header.Get("Authorization")
+
 			if authHeader == "" {
-				utils.UnauthorisedResponse(w, "authorization header required")
+				r := security.SetContextUser(r, security.AnonymousUser)
+				next.ServeHTTP(w, r)
 				return
 			}
 

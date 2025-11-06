@@ -34,7 +34,7 @@ func (u *ContextUser) IsAnonymous() bool {
 	return u == AnonymousUser
 }
 
-// SetContextUser funct returns a new copy of the request with the provided User struct added to the context
+// SetContextUser function returns a new copy of the request with the provided User struct added to the context
 func SetContextUser(r *http.Request, user *ContextUser) *http.Request {
 	ctx := context.WithValue(r.Context(), UserContextKey, user)
 
