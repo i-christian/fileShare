@@ -94,6 +94,7 @@ select
     ak.expires_at,
     u.user_id,
     u.first_name,
+    u.is_verified,
     u.last_name,
     u.role,
     u.email
@@ -103,14 +104,15 @@ where prefix = $1
 `
 
 type GetApiKeyByPrefixRow struct {
-	ApiKeyID  uuid.UUID `json:"api_key_id"`
-	KeyHash   string    `json:"key_hash"`
-	ExpiresAt time.Time `json:"expires_at"`
-	UserID    uuid.UUID `json:"user_id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Role      UserRole  `json:"role"`
-	Email     string    `json:"email"`
+	ApiKeyID   uuid.UUID `json:"api_key_id"`
+	KeyHash    string    `json:"key_hash"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	UserID     uuid.UUID `json:"user_id"`
+	FirstName  string    `json:"first_name"`
+	IsVerified bool      `json:"is_verified"`
+	LastName   string    `json:"last_name"`
+	Role       UserRole  `json:"role"`
+	Email      string    `json:"email"`
 }
 
 func (q *Queries) GetApiKeyByPrefix(ctx context.Context, prefix string) (GetApiKeyByPrefixRow, error) {
@@ -122,6 +124,7 @@ func (q *Queries) GetApiKeyByPrefix(ctx context.Context, prefix string) (GetApiK
 		&i.ExpiresAt,
 		&i.UserID,
 		&i.FirstName,
+		&i.IsVerified,
 		&i.LastName,
 		&i.Role,
 		&i.Email,

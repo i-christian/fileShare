@@ -34,6 +34,7 @@ select
     ak.expires_at,
     u.user_id,
     u.first_name,
+    u.is_verified,
     u.last_name,
     u.role,
     u.email

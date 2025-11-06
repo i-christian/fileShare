@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -72,17 +73,18 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 	}, nil
 }
 
-func (s *AuthService) generateAccessToken(email, firstName, lastName string, userID uuid.UUID, role string) (string, error) {
+func (s *AuthService) generateAccessToken(email, firstName, lastName string, userID uuid.UUID, role string, isVerified bool) (string, error) {
 	expirationTime := time.Now().Add(s.accessTokenTTL)
 
 	claims := jwt.MapClaims{
-		"sub":        userID.String(),
-		"first_name": firstName,
-		"last_name":  lastName,
-		"email":      email,
-		"role":       role,
-		"exp":        expirationTime.Unix(),
-		"iat":        time.Now().Unix(),
+		"sub":         userID.String(),
+		"first_name":  firstName,
+		"last_name":   lastName,
+		"email":       email,
+		"role":        role,
+		"is_verified": strconv.FormatBool(isVerified),
+		"exp":         expirationTime.Unix(),
+		"iat":         time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -103,7 +105,6 @@ func (s *AuthService) ValidateToken(tokenString string) (*security.ContextUser, 
 		}
 		return s.jwtSecret, nil
 	})
-
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken
@@ -130,7 +131,7 @@ func newUserFromClaims(claims jwt.MapClaims) (*security.ContextUser, error) {
 
 	userIDStr, err := getStringClaim("sub")
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -157,12 +158,23 @@ func newUserFromClaims(claims jwt.MapClaims) (*security.ContextUser, error) {
 		return nil, err
 	}
 
+	verifiedStr, err := getStringClaim("is_verified")
+	if err != nil {
+		return nil, err
+	}
+
+	verifiedBool, err := strconv.ParseBool(verifiedStr)
+	if err != nil {
+		return nil, ErrInvalidClaims
+	}
+
 	user := &security.ContextUser{
-		FirstName: firstName,
-		LastName:  lastName,
-		Email:     email,
-		Role:      role,
-		UserID:    userID,
+		FirstName:   firstName,
+		LastName:    lastName,
+		Email:       email,
+		Role:        role,
+		UserID:      userID,
+		IsActivated: verifiedBool,
 	}
 
 	return user, nil
@@ -178,7 +190,7 @@ func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password stri
 		return "", "", ErrInvalidCredentials
 	}
 
-	accessToken, err = s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role))
+	accessToken, err = s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role), user.IsVerified)
 	if err != nil {
 		return "", "", err
 	}
@@ -213,7 +225,7 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 		return "", errors.Join(utils.ErrUnexpectedError, err)
 	}
 
-	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role))
+	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role), user.IsVerified)
 
 	return accessToken, nil
 }

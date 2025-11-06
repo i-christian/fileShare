@@ -11,6 +11,7 @@ var (
 	ErrRecordExists    = errors.New("The record already exist in the database")
 	ErrRecordNotFound  = errors.New("The record does not exist")
 	ErrEditConflict    = errors.New("edit confict")
+	ErrAuthRequired    = errors.New("authentication is required to access this resource")
 )
 
 // WriteErrorJSON returns an error in json format to the client

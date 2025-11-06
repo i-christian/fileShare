@@ -45,7 +45,7 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 					if errors.Is(err, auth.ErrExpiredToken) {
 						utils.UnauthorisedResponse(w, "token has expired")
 					} else {
-						utils.UnauthorisedResponse(w, "invalid or expired token")
+						utils.UnauthorisedResponse(w, err.Error())
 					}
 					return
 				}
@@ -77,6 +77,30 @@ func AuthMiddleware(authService *auth.AuthService, apiKeyService *auth.ApiKeySer
 			}
 		})
 	}
+}
+
+func RequireActivatedUser(next http.Handler) http.Handler {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := security.GetUserFromContext(r)
+		if !ok {
+			utils.UnauthorisedResponse(w, "unauthorized")
+			return
+		}
+
+		if user.IsAnonymous() {
+			utils.UnauthorisedResponse(w, "authentication is required to access this resource")
+			return
+		}
+
+		if !user.IsActivated {
+			utils.InactivateAccountResponse(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return fn
 }
 
 // Limiter is a config struct for rate limit middleware

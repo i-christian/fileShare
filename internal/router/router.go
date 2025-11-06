@@ -49,9 +49,13 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 		// Authorised routes
 		r.Route("/user", func(r chi.Router) {
 			r.Use(middlewares.AuthMiddleware(authService, apiKeyService))
-			r.Get("/me", uH.MyProfile)
 			r.Put("/activated", uH.ActivateUserHandler)
-			r.Post("/api-keys", aH.CreateAPIKey)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middlewares.RequireActivatedUser)
+				r.Get("/me", uH.MyProfile)
+				r.Post("/api-keys", aH.CreateAPIKey)
+			})
 		})
 	})
 

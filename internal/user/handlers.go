@@ -42,8 +42,9 @@ func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request) {
 	userFromContext, ok := security.GetUserFromContext(r)
-	if !ok {
-		utils.UnauthorisedResponse(w, "unauthorized")
+	if !ok || userFromContext.IsAnonymous() {
+		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
+		return
 	}
 
 	var input struct {

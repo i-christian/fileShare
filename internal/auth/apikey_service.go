@@ -124,10 +124,11 @@ func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (*
 	})
 
 	return &security.ContextUser{
-		FirstName: dBKey.FirstName,
-		LastName:  dBKey.LastName,
-		Email:     dBKey.Email,
-		Role:      string(dBKey.Role),
-		UserID:    dBKey.UserID,
+		FirstName:   dBKey.FirstName,
+		LastName:    dBKey.LastName,
+		Email:       dBKey.Email,
+		Role:        string(dBKey.Role),
+		UserID:      dBKey.UserID,
+		IsActivated: dBKey.IsVerified,
 	}, nil
 }

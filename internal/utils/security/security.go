@@ -15,11 +15,12 @@ import (
 )
 
 type ContextUser struct {
-	FirstName string
-	LastName  string
-	Email     string
-	Role      string
-	UserID    uuid.UUID
+	FirstName   string
+	LastName    string
+	Email       string
+	Role        string
+	UserID      uuid.UUID
+	IsActivated bool
 }
 
 type contextKey string
