@@ -28,9 +28,15 @@ func ServerErrorResponse(w http.ResponseWriter, message string) {
 	WriteErrorJSON(w, http.StatusInternalServerError, message)
 }
 
-// UnauthorisedResponse is a helper to send uauthorised response to client
+// UnauthorisedResponse is a helper to send unauthorised response to client
 func UnauthorisedResponse(w http.ResponseWriter, msg string) {
 	WriteErrorJSON(w, http.StatusUnauthorized, msg)
+}
+
+// InactivateAccountResponse is a helper to send an error response to client if they are using an unverified account to access a protected route.
+func InactivateAccountResponse(w http.ResponseWriter) {
+	msg := "your user account must be activated to access this resource"
+	WriteErrorJSON(w, http.StatusForbidden, msg)
 }
 
 // FailedValidationResponse returns an error if request body is invalid

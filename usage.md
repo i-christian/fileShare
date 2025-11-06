@@ -222,7 +222,7 @@ curl -X POST http://localhost:8080/api/v1/user/api-keys \
 You can store it and authenticate future requests using:
 
 ```bash
-export API_KEY="apiKeyPrefix_L0ngS3cur3Str1ngG0esH3re"
+export API_KEY="fi068eXkGfaHQr_gfexbYIauupjsYf3XA3enXponoO2t8F0"
 ```
 
 Then access any API endpoint using the key:
