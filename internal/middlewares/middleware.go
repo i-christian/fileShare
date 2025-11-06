@@ -83,12 +83,12 @@ func RequireActivatedUser(next http.Handler) http.Handler {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := security.GetUserFromContext(r)
 		if !ok {
-			utils.UnauthorisedResponse(w, "unauthorized")
+			utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 			return
 		}
 
 		if user.IsAnonymous() {
-			utils.UnauthorisedResponse(w, "authentication is required to access this resource")
+			utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 			return
 		}
 
