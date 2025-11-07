@@ -40,6 +40,12 @@ func InactivateAccountResponse(w http.ResponseWriter) {
 	WriteErrorJSON(w, http.StatusForbidden, msg)
 }
 
+// NotPermittedResponse sends a 403 error if client has no permission to access a particular resource.
+func NotPermittedResponse(w http.ResponseWriter) {
+	message := "your user account doesn't have the necessary permissions to access this resource"
+	WriteErrorJSON(w, http.StatusForbidden, message)
+}
+
 // FailedValidationResponse returns an error if request body is invalid
 func FailedValidationResponse(w http.ResponseWriter, msg map[string]string) {
 	WriteErrorJSON(w, http.StatusUnprocessableEntity, msg)
