@@ -24,6 +24,7 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 	r := chi.NewRouter()
 
 	// Global middlewares
+	r.Use(middlewares.Metrics)
 	r.Use(middleware.CleanPath)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
