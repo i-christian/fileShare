@@ -245,3 +245,67 @@ curl -X GET http://localhost:8080/api/v1/user/me \
 }
 ```
 ---
+
+#### Load testing using `hey` package
+- We can use a tool like hey to generate some requests to our application and see its performance under load. For example, we can send a batch of requests to the POST /api/v1/auth/login endpoint (which is slow and costly because it checks a bcrypt-hashed password) as follows:
+
+1. Install [hey](https://github.com/rakyll/hey?tab=readme-ov-file) on linux you can use:
+  ```
+    sudo apt update && sudo apt install hey
+  ```
+2. Run with the api running with rate limiter disabled using:
+```
+  go run cmd/api/main.go -limiter-enabled=false
+```
+3. Test the login endpoint as this example:
+```
+  BODY='{"email": "alice@example.com", "password": "supersecret123"}'
+  
+  hey -d "$BODY" -m "POST" curl -X POST http://localhost:8080/api/v1/auth/login
+```
+
+**Response:**
+```
+  Summary:
+  Total:        13.3192 secs
+  Slowest:      3.8290 secs
+  Fastest:      2.2823 secs
+  Average:      3.2493 secs
+  Requests/sec: 15.0159
+
+  Total data:   86600 bytes
+  Size/request: 433 bytes
+
+Response time histogram:
+  2.282 [1]     |■
+  2.437 [0]     |
+  2.592 [1]     |■
+  2.746 [7]     |■■■■■■
+  2.901 [13]    |■■■■■■■■■■■■
+  3.056 [30]    |■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  3.210 [31]    |■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  3.365 [45]    |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  3.520 [33]    |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  3.674 [30]    |■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  3.829 [9]     |■■■■■■■■
+
+
+Latency distribution:
+  10% in 2.8810 secs
+  25% in 3.0533 secs
+  50% in 3.2646 secs
+  75% in 3.4607 secs
+  90% in 3.6082 secs
+  95% in 3.6706 secs
+  99% in 3.7771 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:   0.0018 secs, 2.2823 secs, 3.8290 secs
+  DNS-lookup:   0.0012 secs, 0.0000 secs, 0.0143 secs
+  req write:    0.0007 secs, 0.0001 secs, 0.0127 secs
+  resp wait:    3.2460 secs, 2.2616 secs, 3.8278 secs
+  resp read:    0.0006 secs, 0.0001 secs, 0.0065 secs
+
+Status code distribution:
+  [200] 200 responses
+```

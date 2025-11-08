@@ -71,7 +71,7 @@ flowchart LR
 
 | Method   | Endpoint                      | Description                       | Auth       |
 | -------- | ----------------------------- | --------------------------------- | ---------- |
-| `GET`    | `/api/v1/health`              | Check the application status      | ✅         |
+| `GET`    | `/api/v1/healthcheck`         | Check the application status      | ✅         |
 | `POST`   | `/api/v1/auth/signup`         | Register a new user               | ✅         |
 | `POST`   | `/api/v1/auth/login`          | Login and get JWT tokens          | ✅         |
 | `POST`   | `/api/v1/auth/refresh`        | Refresh JWT token                 | ✅         |

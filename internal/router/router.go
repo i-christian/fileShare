@@ -1,6 +1,7 @@
 package router
 
 import (
+	"expvar"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -39,8 +40,10 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 		MaxAge:           300,
 	}))
 
+	r.Handle("/debug/vars", expvar.Handler())
+
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", pH.HealthStatus)
+		r.Get("/healthcheck", pH.HealthStatus)
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/signup", aH.Signup)
 			r.Post("/login", aH.LoginWithRefresh)

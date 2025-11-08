@@ -5,12 +5,13 @@ build:
 
 # Run the application
 run:
-	@go run cmd/api/main.go
+	@echo "Running with rate limiter disabled..."
+	@go run cmd/api/main.go -limiter-enabled=false
 
 # Test the application
 test:
 	@echo "Testing..."
-	@go test -v -cover ./...
+	@go test -v -cover ./... -limiter-enabled=false
 
 # Clean the binary
 clean:
