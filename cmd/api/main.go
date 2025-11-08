@@ -20,6 +20,7 @@ import (
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
 	"github.com/i-christian/fileShare/internal/mailer"
+	"github.com/i-christian/fileShare/internal/public"
 	"github.com/i-christian/fileShare/internal/router"
 	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
@@ -33,6 +34,7 @@ type Config struct {
 	jwtSecret       string
 	apiKeyPrefix    string
 	environment     string
+	version         string
 	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
@@ -86,11 +88,13 @@ func main() {
 	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
 	domain := utils.GetEnvOrFile("DOMAIN")
 	env := utils.GetEnvOrFile("ENV")
+	version := utils.GetEnvOrFile("VERSION")
 	config := &Config{
 		port:            port,
 		domain:          domain,
 		jwtSecret:       string(jwtSecret),
 		environment:     env,
+		version:         version,
 		jwtTTL:          15 * time.Minute,
 		apiKeyPrefix:    apiKeyPrefix,
 		refreshTokenTTL: 7 * 24 * time.Hour,
@@ -119,6 +123,8 @@ func main() {
 	}
 
 	psqlService := database.New(conn)
+	publicHandler := public.NewPublicHandler(config.environment, config.version, logger)
+
 	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
 	apiKeyService := auth.NewApiKeyService(8, config.apiKeyPrefix, psqlService, config.logger, &wg)
 	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService, &wg)
@@ -126,7 +132,7 @@ func main() {
 	userService := user.NewUserService(psqlService, config.logger)
 	userHandler := user.NewUserHandler(userService)
 
-	router := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler)
+	router := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler, publicHandler)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.port),

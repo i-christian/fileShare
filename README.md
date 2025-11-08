@@ -12,7 +12,7 @@ It exposes a **RESTful JSON API** that handles authentication, file uploads, sha
 - 🧩 **Chunked & Resumable Uploads** – Efficient handling of large files.
 - 🔗 **Secure Share Links** – Time-limited, optionally password-protected share URLs.
 - 🗃️ **PostgreSQL Storage** – Reliable relational database for metadata.
-- ⚙️ **Redis Integration** – Caching, session state, and background job queue.
+- ⚙️ **Redis Integration** – Caching and background job queue.
 - 🧵 **Concurrent Background Workers** – For thumbnails, virus scans, or cleanup tasks.
 - 🧰 **Docker-Ready** – Containerized with Docker Compose for easy setup.
 
@@ -71,6 +71,7 @@ flowchart LR
 
 | Method   | Endpoint                      | Description                       | Auth       |
 | -------- | ----------------------------- | --------------------------------- | ---------- |
+| `GET`    | `/api/v1/health`              | Check the application status      | ✅         |
 | `POST`   | `/api/v1/auth/signup`         | Register a new user               | ✅         |
 | `POST`   | `/api/v1/auth/login`          | Login and get JWT tokens          | ✅         |
 | `POST`   | `/api/v1/auth/refresh`        | Refresh JWT token                 | ✅         |

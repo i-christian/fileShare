@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/middlewares"
+	"github.com/i-christian/fileShare/internal/public"
 	"github.com/i-christian/fileShare/internal/user"
 )
 
@@ -18,7 +19,7 @@ type RoutesConfig struct {
 	LimiterEnabled bool
 }
 
-func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler) http.Handler {
+func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler, pH *public.PublicHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -39,14 +40,13 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 	}))
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Unauthorised routes
+		r.Get("/health", pH.HealthStatus)
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/signup", aH.Signup)
 			r.Post("/login", aH.LoginWithRefresh)
 			r.Post("/refresh", aH.Refresh)
 		})
 
-		// Authorised routes
 		r.Route("/user", func(r chi.Router) {
 			r.Use(middlewares.AuthMiddleware(authService, apiKeyService))
 			r.Put("/activated", uH.ActivateUserHandler)
