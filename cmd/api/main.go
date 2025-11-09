@@ -27,6 +27,7 @@ import (
 	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
+	"github.com/i-christian/fileShare/internal/vcs"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -69,28 +70,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up database in-app database migrations
-	func() {
-		var err error
-		for i := 0; i < 10; i++ {
-			log.Printf("Trying to run database migration: %d\n", i)
-			err = db.SetUpMigration(conn)
-			if err == nil {
-				break
-			}
-			time.Sleep(2 * time.Second)
-		}
-		if err != nil {
-			logger.Error("failed to run migrations", "error message", err.Error())
-			os.Exit(1)
-		}
-	}()
-
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
 	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
 	domain := utils.GetEnvOrFile("DOMAIN")
 	env := utils.GetEnvOrFile("ENV")
-	version := utils.GetEnvOrFile("VERSION")
+	version := vcs.Version()
 	config := &Config{
 		port:            port,
 		domain:          domain,
@@ -110,7 +94,30 @@ func main() {
 	flag.IntVar(&routeConfig.Burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&routeConfig.LimiterEnabled, "limiter-enabled", true, "Enable rate limiter")
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
+
+	// Set up database in-app database migrations
+	func() {
+		var err error
+		for i := 0; i < 10; i++ {
+			log.Printf("Trying to run database migration: %d\n", i)
+			err = db.SetUpMigration(conn)
+			if err == nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if err != nil {
+			logger.Error("failed to run migrations", "error message", err.Error())
+			os.Exit(1)
+		}
+	}()
 
 	mailHost := utils.GetEnvOrFile("MAILTRAP_SMTP_HOST")
 	mailPort, _ := strconv.Atoi(utils.GetEnvOrFile("MAILTRAP_SMTP_PORT"))
