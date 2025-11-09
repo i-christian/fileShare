@@ -1,3 +1,7 @@
+# Create a confirm target prerequisite
+confirm:
+	@echo -n 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
+
 # Build the application
 build:
 	@echo "Building..."
@@ -14,7 +18,7 @@ test:
 	@go test -v -cover ./... -limiter-enabled=false
 
 # Clean the binary
-clean:
+clean: confirm
 	@echo "Cleaning..."
 	@rm -f main
 
@@ -24,7 +28,7 @@ docker-dev-up:
 	@docker compose -f docker-compose.yml up -d --build
 
 # Shutdown docker
-docker-down:
+docker-down: confirm
 	@echo "Destroying docker containers..."
 	@docker compose down
 
