@@ -57,3 +57,228 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 	)
 	return i, err
 }
+
+const deleteFile = `-- name: DeleteFile :exec
+update files
+    set
+        is_deleted = true,
+        deleted_at = $1,
+        version = version + 1
+where file_id = $2
+    and version = $3
+`
+
+type DeleteFileParams struct {
+	DeletedAt sql.NullTime `json:"deleted_at"`
+	FileID    uuid.UUID    `json:"file_id"`
+	Version   int32        `json:"version"`
+}
+
+// Sets file is deleted tag to true and adds a the specified date for a background task to delete it.
+func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
+	_, err := q.exec(ctx, q.deleteFileStmt, deleteFile, arg.DeletedAt, arg.FileID, arg.Version)
+	return err
+}
+
+const getFileInfo = `-- name: GetFileInfo :one
+select
+    file_id,
+    user_id as owner_id,
+    filename,
+    storage_key,
+    mime_type,
+    size_bytes,
+    visibility,
+    thumbnail_key,
+    checksum,
+    tags,
+    version
+from files
+    where is_deleted = false
+        and file_id = $1
+`
+
+type GetFileInfoRow struct {
+	FileID       uuid.UUID      `json:"file_id"`
+	OwnerID      uuid.UUID      `json:"owner_id"`
+	Filename     string         `json:"filename"`
+	StorageKey   string         `json:"storage_key"`
+	MimeType     string         `json:"mime_type"`
+	SizeBytes    int64          `json:"size_bytes"`
+	Visibility   FileVisibility `json:"visibility"`
+	ThumbnailKey sql.NullString `json:"thumbnail_key"`
+	Checksum     sql.NullString `json:"checksum"`
+	Tags         []string       `json:"tags"`
+	Version      int32          `json:"version"`
+}
+
+// Retrieve metadata of a file from the database.
+func (q *Queries) GetFileInfo(ctx context.Context, fileID uuid.UUID) (GetFileInfoRow, error) {
+	row := q.queryRow(ctx, q.getFileInfoStmt, getFileInfo, fileID)
+	var i GetFileInfoRow
+	err := row.Scan(
+		&i.FileID,
+		&i.OwnerID,
+		&i.Filename,
+		&i.StorageKey,
+		&i.MimeType,
+		&i.SizeBytes,
+		&i.Visibility,
+		&i.ThumbnailKey,
+		&i.Checksum,
+		pq.Array(&i.Tags),
+		&i.Version,
+	)
+	return i, err
+}
+
+const getFileOwner = `-- name: GetFileOwner :one
+select
+    u.user_id,
+    u.last_name,
+    u.first_name,
+    u.email
+from users u
+    join files f
+        on u.user_id = f.user_id
+        and f.file_id = $1
+`
+
+type GetFileOwnerRow struct {
+	UserID    uuid.UUID `json:"user_id"`
+	LastName  string    `json:"last_name"`
+	FirstName string    `json:"first_name"`
+	Email     string    `json:"email"`
+}
+
+func (q *Queries) GetFileOwner(ctx context.Context, fileID uuid.UUID) (GetFileOwnerRow, error) {
+	row := q.queryRow(ctx, q.getFileOwnerStmt, getFileOwner, fileID)
+	var i GetFileOwnerRow
+	err := row.Scan(
+		&i.UserID,
+		&i.LastName,
+		&i.FirstName,
+		&i.Email,
+	)
+	return i, err
+}
+
+const listFiles = `-- name: ListFiles :many
+select
+    u.user_id,
+    u.last_name,
+    u.first_name,
+    u.email,
+    f.file_id,
+    f.filename,
+    f.storage_key,
+    f.mime_type,
+    f.size_bytes,
+    f.visibility,
+    f.thumbnail_key,
+    f.checksum,
+    f.tags,
+    f.version
+from files f
+    join users u
+        on f.user_id = u.user_id
+`
+
+type ListFilesRow struct {
+	UserID       uuid.UUID      `json:"user_id"`
+	LastName     string         `json:"last_name"`
+	FirstName    string         `json:"first_name"`
+	Email        string         `json:"email"`
+	FileID       uuid.UUID      `json:"file_id"`
+	Filename     string         `json:"filename"`
+	StorageKey   string         `json:"storage_key"`
+	MimeType     string         `json:"mime_type"`
+	SizeBytes    int64          `json:"size_bytes"`
+	Visibility   FileVisibility `json:"visibility"`
+	ThumbnailKey sql.NullString `json:"thumbnail_key"`
+	Checksum     sql.NullString `json:"checksum"`
+	Tags         []string       `json:"tags"`
+	Version      int32          `json:"version"`
+}
+
+func (q *Queries) ListFiles(ctx context.Context) ([]ListFilesRow, error) {
+	rows, err := q.query(ctx, q.listFilesStmt, listFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFilesRow{}
+	for rows.Next() {
+		var i ListFilesRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.LastName,
+			&i.FirstName,
+			&i.Email,
+			&i.FileID,
+			&i.Filename,
+			&i.StorageKey,
+			&i.MimeType,
+			&i.SizeBytes,
+			&i.Visibility,
+			&i.ThumbnailKey,
+			&i.Checksum,
+			pq.Array(&i.Tags),
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setFileVisibility = `-- name: SetFileVisibility :one
+update files
+    set
+        visibility = $1,
+        version = version + 1
+where file_id = $2
+    and version = $3
+    returning visibility
+`
+
+type SetFileVisibilityParams struct {
+	Visibility FileVisibility `json:"visibility"`
+	FileID     uuid.UUID      `json:"file_id"`
+	Version    int32          `json:"version"`
+}
+
+func (q *Queries) SetFileVisibility(ctx context.Context, arg SetFileVisibilityParams) (FileVisibility, error) {
+	row := q.queryRow(ctx, q.setFileVisibilityStmt, setFileVisibility, arg.Visibility, arg.FileID, arg.Version)
+	var visibility FileVisibility
+	err := row.Scan(&visibility)
+	return visibility, err
+}
+
+const updateFileName = `-- name: UpdateFileName :exec
+update files
+    set
+        filename = $1,
+        version = version + 1,
+        updated_at = now()
+where file_id = $2
+    and version = $3
+`
+
+type UpdateFileNameParams struct {
+	Filename string    `json:"filename"`
+	FileID   uuid.UUID `json:"file_id"`
+	Version  int32     `json:"version"`
+}
+
+func (q *Queries) UpdateFileName(ctx context.Context, arg UpdateFileNameParams) error {
+	_, err := q.exec(ctx, q.updateFileNameStmt, updateFileName, arg.Filename, arg.FileID, arg.Version)
+	return err
+}

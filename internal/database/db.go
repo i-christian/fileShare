@@ -54,6 +54,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteApiKeyStmt, err = db.PrepareContext(ctx, deleteApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteApiKey: %w", err)
 	}
+	if q.deleteFileStmt, err = db.PrepareContext(ctx, deleteFile); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteFile: %w", err)
+	}
 	if q.deleteRefreshTokenStmt, err = db.PrepareContext(ctx, deleteRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRefreshToken: %w", err)
 	}
@@ -62,6 +65,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getApiKeyByPrefixStmt, err = db.PrepareContext(ctx, getApiKeyByPrefix); err != nil {
 		return nil, fmt.Errorf("error preparing query GetApiKeyByPrefix: %w", err)
+	}
+	if q.getFileInfoStmt, err = db.PrepareContext(ctx, getFileInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFileInfo: %w", err)
+	}
+	if q.getFileOwnerStmt, err = db.PrepareContext(ctx, getFileOwner); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFileOwner: %w", err)
 	}
 	if q.getRefreshTokenStmt, err = db.PrepareContext(ctx, getRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRefreshToken: %w", err)
@@ -75,14 +84,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listApiKeysByUserStmt, err = db.PrepareContext(ctx, listApiKeysByUser); err != nil {
 		return nil, fmt.Errorf("error preparing query ListApiKeysByUser: %w", err)
 	}
+	if q.listFilesStmt, err = db.PrepareContext(ctx, listFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query ListFiles: %w", err)
+	}
 	if q.revokeApiKeyStmt, err = db.PrepareContext(ctx, revokeApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query RevokeApiKey: %w", err)
 	}
 	if q.revokeRefreshTokenStmt, err = db.PrepareContext(ctx, revokeRefreshToken); err != nil {
 		return nil, fmt.Errorf("error preparing query RevokeRefreshToken: %w", err)
 	}
+	if q.setFileVisibilityStmt, err = db.PrepareContext(ctx, setFileVisibility); err != nil {
+		return nil, fmt.Errorf("error preparing query SetFileVisibility: %w", err)
+	}
 	if q.updateApiKeyLastUsedStmt, err = db.PrepareContext(ctx, updateApiKeyLastUsed); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateApiKeyLastUsed: %w", err)
+	}
+	if q.updateFileNameStmt, err = db.PrepareContext(ctx, updateFileName); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateFileName: %w", err)
 	}
 	return &q, nil
 }
@@ -139,6 +157,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteApiKeyStmt: %w", cerr)
 		}
 	}
+	if q.deleteFileStmt != nil {
+		if cerr := q.deleteFileStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteFileStmt: %w", cerr)
+		}
+	}
 	if q.deleteRefreshTokenStmt != nil {
 		if cerr := q.deleteRefreshTokenStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteRefreshTokenStmt: %w", cerr)
@@ -152,6 +175,16 @@ func (q *Queries) Close() error {
 	if q.getApiKeyByPrefixStmt != nil {
 		if cerr := q.getApiKeyByPrefixStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getApiKeyByPrefixStmt: %w", cerr)
+		}
+	}
+	if q.getFileInfoStmt != nil {
+		if cerr := q.getFileInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFileInfoStmt: %w", cerr)
+		}
+	}
+	if q.getFileOwnerStmt != nil {
+		if cerr := q.getFileOwnerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFileOwnerStmt: %w", cerr)
 		}
 	}
 	if q.getRefreshTokenStmt != nil {
@@ -174,6 +207,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listApiKeysByUserStmt: %w", cerr)
 		}
 	}
+	if q.listFilesStmt != nil {
+		if cerr := q.listFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listFilesStmt: %w", cerr)
+		}
+	}
 	if q.revokeApiKeyStmt != nil {
 		if cerr := q.revokeApiKeyStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing revokeApiKeyStmt: %w", cerr)
@@ -184,9 +222,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing revokeRefreshTokenStmt: %w", cerr)
 		}
 	}
+	if q.setFileVisibilityStmt != nil {
+		if cerr := q.setFileVisibilityStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setFileVisibilityStmt: %w", cerr)
+		}
+	}
 	if q.updateApiKeyLastUsedStmt != nil {
 		if cerr := q.updateApiKeyLastUsedStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateApiKeyLastUsedStmt: %w", cerr)
+		}
+	}
+	if q.updateFileNameStmt != nil {
+		if cerr := q.updateFileNameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateFileNameStmt: %w", cerr)
 		}
 	}
 	return err
@@ -238,16 +286,22 @@ type Queries struct {
 	createUserStmt            *sql.Stmt
 	deleteActionTokenStmt     *sql.Stmt
 	deleteApiKeyStmt          *sql.Stmt
+	deleteFileStmt            *sql.Stmt
 	deleteRefreshTokenStmt    *sql.Stmt
 	getActionTokenForUserStmt *sql.Stmt
 	getApiKeyByPrefixStmt     *sql.Stmt
+	getFileInfoStmt           *sql.Stmt
+	getFileOwnerStmt          *sql.Stmt
 	getRefreshTokenStmt       *sql.Stmt
 	getUserByEmailStmt        *sql.Stmt
 	getUserByIDStmt           *sql.Stmt
 	listApiKeysByUserStmt     *sql.Stmt
+	listFilesStmt             *sql.Stmt
 	revokeApiKeyStmt          *sql.Stmt
 	revokeRefreshTokenStmt    *sql.Stmt
+	setFileVisibilityStmt     *sql.Stmt
 	updateApiKeyLastUsedStmt  *sql.Stmt
+	updateFileNameStmt        *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -264,15 +318,21 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createUserStmt:            q.createUserStmt,
 		deleteActionTokenStmt:     q.deleteActionTokenStmt,
 		deleteApiKeyStmt:          q.deleteApiKeyStmt,
+		deleteFileStmt:            q.deleteFileStmt,
 		deleteRefreshTokenStmt:    q.deleteRefreshTokenStmt,
 		getActionTokenForUserStmt: q.getActionTokenForUserStmt,
 		getApiKeyByPrefixStmt:     q.getApiKeyByPrefixStmt,
+		getFileInfoStmt:           q.getFileInfoStmt,
+		getFileOwnerStmt:          q.getFileOwnerStmt,
 		getRefreshTokenStmt:       q.getRefreshTokenStmt,
 		getUserByEmailStmt:        q.getUserByEmailStmt,
 		getUserByIDStmt:           q.getUserByIDStmt,
 		listApiKeysByUserStmt:     q.listApiKeysByUserStmt,
+		listFilesStmt:             q.listFilesStmt,
 		revokeApiKeyStmt:          q.revokeApiKeyStmt,
 		revokeRefreshTokenStmt:    q.revokeRefreshTokenStmt,
+		setFileVisibilityStmt:     q.setFileVisibilityStmt,
 		updateApiKeyLastUsedStmt:  q.updateApiKeyLastUsedStmt,
+		updateFileNameStmt:        q.updateFileNameStmt,
 	}
 }
