@@ -105,7 +105,7 @@ func main() {
 	// Set up database in-app database migrations
 	func() {
 		var err error
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			log.Printf("Trying to run database migration: %d\n", i)
 			err = db.SetUpMigration(conn)
 			if err == nil {
@@ -156,7 +156,7 @@ func main() {
 	expvar.Publish("goroutines", expvar.Func(func() any {
 		return runtime.NumGoroutine()
 	}))
-	expvar.Publish("databaase", expvar.Func(func() any {
+	expvar.Publish("database", expvar.Func(func() any {
 		return db.Health(conn)
 	}))
 	expvar.Publish("timestamp", expvar.Func(func() any {
@@ -191,7 +191,7 @@ func gracefulShutdown(
 	// Listen for the interrupt signal.
 	<-ctx.Done()
 
-	slog.Info("shutting down gracefully, press Ctrl+C again to force")
+	slog.Info("Shutting down gracefully, press Ctrl+C again to force")
 
 	// The context is used to inform the server it has 10 seconds to finish
 	// the request it is currently handling
@@ -201,7 +201,7 @@ func gracefulShutdown(
 		slog.Info("Server forced to shutdown with error, ", "Message", err.Error())
 	}
 
-	logger.Info("completing background tasks")
+	logger.Info("Completing background tasks")
 	wg.Wait()
 
 	if err := conn.Close(); err != nil {
