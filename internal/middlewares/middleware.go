@@ -1,3 +1,4 @@
+// Package middlewares defines custom middleware functions used by this application
 package middlewares
 
 import (
@@ -163,4 +164,3 @@ func RateLimit(rps float64, burst int, enabled bool) func(http.Handler) http.Han
 		})
 	}
 }
-

@@ -1,3 +1,4 @@
+// Package worker provides mechanisms for executing background tasks.
 package worker
 
 import (
@@ -10,11 +11,7 @@ import (
 // It passes the provided logger to fn and recovers from any panics,
 // logging the error using the same logger.
 func BackgroundTask(wg *sync.WaitGroup, logger *slog.Logger, fn func(l *slog.Logger)) {
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Error(
@@ -25,5 +22,5 @@ func BackgroundTask(wg *sync.WaitGroup, logger *slog.Logger, fn func(l *slog.Log
 		}()
 
 		fn(logger)
-	}()
+	})
 }
