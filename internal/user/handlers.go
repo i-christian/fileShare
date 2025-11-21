@@ -21,7 +21,7 @@ func NewUserHandler(u *UserService) *UserHandler {
 
 func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 	ctxUser, ok := security.GetUserFromContext(r)
-	if !ok {
+	if !ok && !ctxUser.IsAnonymous() {
 		utils.UnauthorisedResponse(w, "try to login first")
 		return
 	}

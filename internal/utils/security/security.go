@@ -6,6 +6,8 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -30,7 +32,7 @@ const UserContextKey = contextKey("user")
 // AnonymousUser holds a pointer to a User struct representing an inactivated user with no ID, name, email or password.
 var AnonymousUser = &ContextUser{}
 
-// Check if a user instance is the AnonymousUser
+// IsAnonymous checks if a user instance is the AnonymousUser
 func (u *ContextUser) IsAnonymous() bool {
 	return u == AnonymousUser
 }
@@ -88,4 +90,24 @@ func HashPassword(password string) (string, error) {
 // VerifyPassword compares a bcrypt-hashed password with a plaintext password.
 func VerifyPassword(hashedPassword, providedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(providedPassword))
+}
+
+// CalculateChecksum generates a SHA256 hex string from a file stream.
+// It reads the file fully, calculates the hash, and then rewinds the file
+// pointer back to the start so the file can be read again.
+func CalculateChecksum(file io.ReadSeeker) (string, error) {
+	hasher := sha256.New()
+
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", fmt.Errorf("failed to hash file: %w", err)
+	}
+
+	hashBytes := hasher.Sum(nil)
+	checksum := hex.EncodeToString(hashBytes)
+
+	if _, err := file.Seek(0, 0); err != nil {
+		return "", fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
+	return checksum, nil
 }

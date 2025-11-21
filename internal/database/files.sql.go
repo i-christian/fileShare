@@ -8,27 +8,65 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
+const countPublicFiles = `-- name: CountPublicFiles :one
+select
+    count(*)
+from files
+    where visibility = 'public'
+        and is_deleted = false
+`
+
+func (q *Queries) CountPublicFiles(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.countPublicFilesStmt, countPublicFiles)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUserFiles = `-- name: CountUserFiles :one
+select count(*) from files
+    where user_id = $1 and is_deleted = false
+`
+
+func (q *Queries) CountUserFiles(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.queryRow(ctx, q.countUserFilesStmt, countUserFiles, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createFile = `-- name: CreateFile :one
 insert into files (user_id, filename, storage_key, mime_type, size_bytes, checksum)
     values($1, $2, $3, $4, $5, $6)
-returning file_id, user_id, filename, storage_key, mime_type, size_bytes, visibility, thumbnail_key, checksum, tags, is_deleted, deleted_at, created_at, updated_at, version
+returning file_id, filename, mime_type, size_bytes, created_at, visibility, version
 `
 
 type CreateFileParams struct {
-	UserID     uuid.UUID      `json:"user_id"`
-	Filename   string         `json:"filename"`
-	StorageKey string         `json:"storage_key"`
-	MimeType   string         `json:"mime_type"`
-	SizeBytes  int64          `json:"size_bytes"`
-	Checksum   sql.NullString `json:"checksum"`
+	UserID     uuid.UUID `json:"user_id"`
+	Filename   string    `json:"filename"`
+	StorageKey string    `json:"storage_key"`
+	MimeType   string    `json:"mime_type"`
+	SizeBytes  int64     `json:"size_bytes"`
+	Checksum   string    `json:"checksum"`
 }
 
-func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
+type CreateFileRow struct {
+	FileID     uuid.UUID      `json:"file_id"`
+	Filename   string         `json:"filename"`
+	MimeType   string         `json:"mime_type"`
+	SizeBytes  int64          `json:"size_bytes"`
+	CreatedAt  time.Time      `json:"created_at"`
+	Visibility FileVisibility `json:"visibility"`
+	Version    int32          `json:"version"`
+}
+
+func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (CreateFileRow, error) {
 	row := q.queryRow(ctx, q.createFileStmt, createFile,
 		arg.UserID,
 		arg.Filename,
@@ -37,22 +75,14 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.SizeBytes,
 		arg.Checksum,
 	)
-	var i File
+	var i CreateFileRow
 	err := row.Scan(
 		&i.FileID,
-		&i.UserID,
 		&i.Filename,
-		&i.StorageKey,
 		&i.MimeType,
 		&i.SizeBytes,
-		&i.Visibility,
-		&i.ThumbnailKey,
-		&i.Checksum,
-		pq.Array(&i.Tags),
-		&i.IsDeleted,
-		&i.DeletedAt,
 		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.Visibility,
 		&i.Version,
 	)
 	return i, err
@@ -80,13 +110,42 @@ func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
 	return err
 }
 
+const getFileByChecksum = `-- name: GetFileByChecksum :one
+select
+    count(checksum),
+    storage_key
+from files
+    where checksum = $1
+        and user_id = $2
+        and is_deleted = false
+    group by storage_key
+`
+
+type GetFileByChecksumParams struct {
+	Checksum string    `json:"checksum"`
+	UserID   uuid.UUID `json:"user_id"`
+}
+
+type GetFileByChecksumRow struct {
+	Count      int64  `json:"count"`
+	StorageKey string `json:"storage_key"`
+}
+
+// GetFileByChecksum function returns an existing file storage key to avoid file duplications
+func (q *Queries) GetFileByChecksum(ctx context.Context, arg GetFileByChecksumParams) (GetFileByChecksumRow, error) {
+	row := q.queryRow(ctx, q.getFileByChecksumStmt, getFileByChecksum, arg.Checksum, arg.UserID)
+	var i GetFileByChecksumRow
+	err := row.Scan(&i.Count, &i.StorageKey)
+	return i, err
+}
+
 const getFileInfo = `-- name: GetFileInfo :one
 select
     file_id,
     user_id as owner_id,
     filename,
-    storage_key,
     mime_type,
+    storage_key,
     size_bytes,
     visibility,
     thumbnail_key,
@@ -102,12 +161,12 @@ type GetFileInfoRow struct {
 	FileID       uuid.UUID      `json:"file_id"`
 	OwnerID      uuid.UUID      `json:"owner_id"`
 	Filename     string         `json:"filename"`
-	StorageKey   string         `json:"storage_key"`
 	MimeType     string         `json:"mime_type"`
+	StorageKey   string         `json:"storage_key"`
 	SizeBytes    int64          `json:"size_bytes"`
 	Visibility   FileVisibility `json:"visibility"`
 	ThumbnailKey sql.NullString `json:"thumbnail_key"`
-	Checksum     sql.NullString `json:"checksum"`
+	Checksum     string         `json:"checksum"`
 	Tags         []string       `json:"tags"`
 	Version      int32          `json:"version"`
 }
@@ -120,8 +179,8 @@ func (q *Queries) GetFileInfo(ctx context.Context, fileID uuid.UUID) (GetFileInf
 		&i.FileID,
 		&i.OwnerID,
 		&i.Filename,
-		&i.StorageKey,
 		&i.MimeType,
+		&i.StorageKey,
 		&i.SizeBytes,
 		&i.Visibility,
 		&i.ThumbnailKey,
@@ -163,18 +222,15 @@ func (q *Queries) GetFileOwner(ctx context.Context, fileID uuid.UUID) (GetFileOw
 	return i, err
 }
 
-const listFiles = `-- name: ListFiles :many
+const listPublicFiles = `-- name: ListPublicFiles :many
 select
-    u.user_id,
+    u.user_id as owner_id,
     u.last_name,
     u.first_name,
-    u.email,
     f.file_id,
     f.filename,
-    f.storage_key,
     f.mime_type,
     f.size_bytes,
-    f.visibility,
     f.thumbnail_key,
     f.checksum,
     f.tags,
@@ -182,49 +238,109 @@ select
 from files f
     join users u
         on f.user_id = u.user_id
+    where f.visibility = 'public'
+        and f.is_deleted = false
+    order by f.created_at desc
+    limit $1 offset $2
 `
 
-type ListFilesRow struct {
-	UserID       uuid.UUID      `json:"user_id"`
+type ListPublicFilesParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListPublicFilesRow struct {
+	OwnerID      uuid.UUID      `json:"owner_id"`
 	LastName     string         `json:"last_name"`
 	FirstName    string         `json:"first_name"`
-	Email        string         `json:"email"`
 	FileID       uuid.UUID      `json:"file_id"`
 	Filename     string         `json:"filename"`
-	StorageKey   string         `json:"storage_key"`
 	MimeType     string         `json:"mime_type"`
 	SizeBytes    int64          `json:"size_bytes"`
-	Visibility   FileVisibility `json:"visibility"`
 	ThumbnailKey sql.NullString `json:"thumbnail_key"`
-	Checksum     sql.NullString `json:"checksum"`
+	Checksum     string         `json:"checksum"`
 	Tags         []string       `json:"tags"`
 	Version      int32          `json:"version"`
 }
 
-func (q *Queries) ListFiles(ctx context.Context) ([]ListFilesRow, error) {
-	rows, err := q.query(ctx, q.listFilesStmt, listFiles)
+func (q *Queries) ListPublicFiles(ctx context.Context, arg ListPublicFilesParams) ([]ListPublicFilesRow, error) {
+	rows, err := q.query(ctx, q.listPublicFilesStmt, listPublicFiles, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListFilesRow{}
+	items := []ListPublicFilesRow{}
 	for rows.Next() {
-		var i ListFilesRow
+		var i ListPublicFilesRow
 		if err := rows.Scan(
-			&i.UserID,
+			&i.OwnerID,
 			&i.LastName,
 			&i.FirstName,
-			&i.Email,
 			&i.FileID,
 			&i.Filename,
-			&i.StorageKey,
 			&i.MimeType,
 			&i.SizeBytes,
-			&i.Visibility,
 			&i.ThumbnailKey,
 			&i.Checksum,
 			pq.Array(&i.Tags),
 			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserFiles = `-- name: ListUserFiles :many
+select 
+    f.file_id, f.filename, f.mime_type, f.size_bytes, f.visibility, f.created_at, f.tags
+from files f
+    where f.user_id = $1
+        and f.is_deleted = false
+    order by f.created_at desc
+    limit $2 offset $3
+`
+
+type ListUserFilesParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+}
+
+type ListUserFilesRow struct {
+	FileID     uuid.UUID      `json:"file_id"`
+	Filename   string         `json:"filename"`
+	MimeType   string         `json:"mime_type"`
+	SizeBytes  int64          `json:"size_bytes"`
+	Visibility FileVisibility `json:"visibility"`
+	CreatedAt  time.Time      `json:"created_at"`
+	Tags       []string       `json:"tags"`
+}
+
+func (q *Queries) ListUserFiles(ctx context.Context, arg ListUserFilesParams) ([]ListUserFilesRow, error) {
+	rows, err := q.query(ctx, q.listUserFilesStmt, listUserFiles, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserFilesRow{}
+	for rows.Next() {
+		var i ListUserFilesRow
+		if err := rows.Scan(
+			&i.FileID,
+			&i.Filename,
+			&i.MimeType,
+			&i.SizeBytes,
+			&i.Visibility,
+			&i.CreatedAt,
+			pq.Array(&i.Tags),
 		); err != nil {
 			return nil, err
 		}

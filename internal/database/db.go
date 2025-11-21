@@ -33,6 +33,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.checkIfEmailExistsStmt, err = db.PrepareContext(ctx, checkIfEmailExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfEmailExists: %w", err)
 	}
+	if q.countPublicFilesStmt, err = db.PrepareContext(ctx, countPublicFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query CountPublicFiles: %w", err)
+	}
+	if q.countUserFilesStmt, err = db.PrepareContext(ctx, countUserFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query CountUserFiles: %w", err)
+	}
 	if q.createActionTokenStmt, err = db.PrepareContext(ctx, createActionToken); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateActionToken: %w", err)
 	}
@@ -66,6 +72,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getApiKeyByPrefixStmt, err = db.PrepareContext(ctx, getApiKeyByPrefix); err != nil {
 		return nil, fmt.Errorf("error preparing query GetApiKeyByPrefix: %w", err)
 	}
+	if q.getFileByChecksumStmt, err = db.PrepareContext(ctx, getFileByChecksum); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFileByChecksum: %w", err)
+	}
 	if q.getFileInfoStmt, err = db.PrepareContext(ctx, getFileInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query GetFileInfo: %w", err)
 	}
@@ -84,8 +93,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listApiKeysByUserStmt, err = db.PrepareContext(ctx, listApiKeysByUser); err != nil {
 		return nil, fmt.Errorf("error preparing query ListApiKeysByUser: %w", err)
 	}
-	if q.listFilesStmt, err = db.PrepareContext(ctx, listFiles); err != nil {
-		return nil, fmt.Errorf("error preparing query ListFiles: %w", err)
+	if q.listPublicFilesStmt, err = db.PrepareContext(ctx, listPublicFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query ListPublicFiles: %w", err)
+	}
+	if q.listUserFilesStmt, err = db.PrepareContext(ctx, listUserFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query ListUserFiles: %w", err)
 	}
 	if q.revokeApiKeyStmt, err = db.PrepareContext(ctx, revokeApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query RevokeApiKey: %w", err)
@@ -120,6 +132,16 @@ func (q *Queries) Close() error {
 	if q.checkIfEmailExistsStmt != nil {
 		if cerr := q.checkIfEmailExistsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing checkIfEmailExistsStmt: %w", cerr)
+		}
+	}
+	if q.countPublicFilesStmt != nil {
+		if cerr := q.countPublicFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countPublicFilesStmt: %w", cerr)
+		}
+	}
+	if q.countUserFilesStmt != nil {
+		if cerr := q.countUserFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countUserFilesStmt: %w", cerr)
 		}
 	}
 	if q.createActionTokenStmt != nil {
@@ -177,6 +199,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getApiKeyByPrefixStmt: %w", cerr)
 		}
 	}
+	if q.getFileByChecksumStmt != nil {
+		if cerr := q.getFileByChecksumStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFileByChecksumStmt: %w", cerr)
+		}
+	}
 	if q.getFileInfoStmt != nil {
 		if cerr := q.getFileInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getFileInfoStmt: %w", cerr)
@@ -207,9 +234,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listApiKeysByUserStmt: %w", cerr)
 		}
 	}
-	if q.listFilesStmt != nil {
-		if cerr := q.listFilesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listFilesStmt: %w", cerr)
+	if q.listPublicFilesStmt != nil {
+		if cerr := q.listPublicFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listPublicFilesStmt: %w", cerr)
+		}
+	}
+	if q.listUserFilesStmt != nil {
+		if cerr := q.listUserFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listUserFilesStmt: %w", cerr)
 		}
 	}
 	if q.revokeApiKeyStmt != nil {
@@ -279,6 +311,8 @@ type Queries struct {
 	activateUserEmailStmt     *sql.Stmt
 	checkIfAPIKeyExistsStmt   *sql.Stmt
 	checkIfEmailExistsStmt    *sql.Stmt
+	countPublicFilesStmt      *sql.Stmt
+	countUserFilesStmt        *sql.Stmt
 	createActionTokenStmt     *sql.Stmt
 	createApiKeyStmt          *sql.Stmt
 	createFileStmt            *sql.Stmt
@@ -290,13 +324,15 @@ type Queries struct {
 	deleteRefreshTokenStmt    *sql.Stmt
 	getActionTokenForUserStmt *sql.Stmt
 	getApiKeyByPrefixStmt     *sql.Stmt
+	getFileByChecksumStmt     *sql.Stmt
 	getFileInfoStmt           *sql.Stmt
 	getFileOwnerStmt          *sql.Stmt
 	getRefreshTokenStmt       *sql.Stmt
 	getUserByEmailStmt        *sql.Stmt
 	getUserByIDStmt           *sql.Stmt
 	listApiKeysByUserStmt     *sql.Stmt
-	listFilesStmt             *sql.Stmt
+	listPublicFilesStmt       *sql.Stmt
+	listUserFilesStmt         *sql.Stmt
 	revokeApiKeyStmt          *sql.Stmt
 	revokeRefreshTokenStmt    *sql.Stmt
 	setFileVisibilityStmt     *sql.Stmt
@@ -311,6 +347,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		activateUserEmailStmt:     q.activateUserEmailStmt,
 		checkIfAPIKeyExistsStmt:   q.checkIfAPIKeyExistsStmt,
 		checkIfEmailExistsStmt:    q.checkIfEmailExistsStmt,
+		countPublicFilesStmt:      q.countPublicFilesStmt,
+		countUserFilesStmt:        q.countUserFilesStmt,
 		createActionTokenStmt:     q.createActionTokenStmt,
 		createApiKeyStmt:          q.createApiKeyStmt,
 		createFileStmt:            q.createFileStmt,
@@ -322,13 +360,15 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteRefreshTokenStmt:    q.deleteRefreshTokenStmt,
 		getActionTokenForUserStmt: q.getActionTokenForUserStmt,
 		getApiKeyByPrefixStmt:     q.getApiKeyByPrefixStmt,
+		getFileByChecksumStmt:     q.getFileByChecksumStmt,
 		getFileInfoStmt:           q.getFileInfoStmt,
 		getFileOwnerStmt:          q.getFileOwnerStmt,
 		getRefreshTokenStmt:       q.getRefreshTokenStmt,
 		getUserByEmailStmt:        q.getUserByEmailStmt,
 		getUserByIDStmt:           q.getUserByIDStmt,
 		listApiKeysByUserStmt:     q.listApiKeysByUserStmt,
-		listFilesStmt:             q.listFilesStmt,
+		listPublicFilesStmt:       q.listPublicFilesStmt,
+		listUserFilesStmt:         q.listUserFilesStmt,
 		revokeApiKeyStmt:          q.revokeApiKeyStmt,
 		revokeRefreshTokenStmt:    q.revokeRefreshTokenStmt,
 		setFileVisibilityStmt:     q.setFileVisibilityStmt,

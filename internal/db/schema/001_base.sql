@@ -72,13 +72,13 @@ CREATE TABLE files (
     size_bytes BIGINT NOT NULL,
     visibility file_visibility NOT NULL DEFAULT 'private',
     thumbnail_key TEXT,
-    checksum TEXT,
+    checksum TEXT NOT NULL,
     tags TEXT[] DEFAULT '{}',
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    version INT NOT NULL DEFAULT 0 -- for race conditions mitigation
+    version INT NOT NULL DEFAULT 1 -- for race conditions mitigation
 );
 
 -- Share Links table: Manages secure, time-sensitive, and protected links

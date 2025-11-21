@@ -7,11 +7,13 @@ import (
 )
 
 var (
-	ErrUnexpectedError = errors.New("A server error occured while processing the request. Our team has been notified")
-	ErrRecordExists    = errors.New("The record already exist in the database")
-	ErrRecordNotFound  = errors.New("The record does not exist")
+	ErrUnexpectedError = errors.New("a server error occured while processing the request. Our team has been notified")
+	ErrRecordExists    = errors.New("the record already exist in the database")
+	ErrRecordNotFound  = errors.New("the record does not exist")
 	ErrEditConflict    = errors.New("edit confict")
 	ErrAuthRequired    = errors.New("authentication is required to access this resource")
+	ErrDuplicateUpload = errors.New("file already exists")
+	ErrNotPermitted    = errors.New("you do not have the permission to access this resource")
 )
 
 // WriteErrorJSON returns an error in json format to the client
@@ -44,6 +46,11 @@ func InactivateAccountResponse(w http.ResponseWriter) {
 func NotPermittedResponse(w http.ResponseWriter) {
 	message := "your user account doesn't have the necessary permissions to access this resource"
 	WriteErrorJSON(w, http.StatusForbidden, message)
+}
+
+// NotFoundResponse send a 404 error to client if no record is found
+func NotFoundResponse(w http.ResponseWriter) {
+	WriteErrorJSON(w, http.StatusNotFound, ErrRecordNotFound.Error())
 }
 
 // FailedValidationResponse returns an error if request body is invalid

@@ -309,3 +309,223 @@ Details (average, fastest, slowest):
 Status code distribution:
   [200] 200 responses
 ```
+
+-----
+
+# 📂 File Management
+
+Ensure you have a valid `$ACCESS_TOKEN` exported from the authentication steps above before proceeding.
+
+-----
+
+## 7️⃣ Upload a File
+
+First, create a dummy file to test with:
+
+```bash
+echo "Hello, this is a test document for fileShare!" > test_doc.txt
+```
+
+Now, upload it using `multipart/form-data`:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/files/upload \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -F "file=@./test_doc.txt"
+```
+
+**Response:**
+
+```json
+{
+  "file": {
+    "file_id": "019aa795-39fd-773d-be17-29a224ee25c9",
+    "filename": "test_doc.txt",
+    "mime_type": "application/octet-stream",
+    "size_bytes": 46,
+    "created_at": "2025-11-21T20:02:46.140894+02:00",
+    "visibility": "private",
+    "version": 0
+  },
+  "message": "File uploaded successfully"
+}
+```
+
+👉 **Save the File ID** for the next steps:
+
+```bash
+export FILE_ID="019aa795-39fd-773d-be17-29a224ee25c9"
+```
+
+-----
+
+## 8️⃣ List "My Files" (Private & Public)
+
+This endpoint lists only the files uploaded by the authenticated user. It supports pagination.
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/files/me?page=1&page_size=5" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "files": [
+    {
+      "file_id": "019aa7de-97b0-7d6b-af94-5a0e203ece41",
+      "filename": "test_doc.txt",
+      "mime_type": "application/octet-stream",
+      "size_bytes": 46,
+      "visibility": "private",
+      "created_at": "2025-11-21T21:22:54.256243+02:00",
+      "tags": []
+    }
+  ],
+  "metadata": {
+    "current_page": 1,
+    "page_size": 5,
+    "first_page": 1,
+    "last_page": 1,
+    "total_records": 1
+  }
+}
+```
+
+-----
+
+## 9️⃣ List Public Files (The Feed)
+
+This endpoint is accessible to **everyone** (authenticated or anonymous). It only shows files marked as `public`.
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/files?page=1&page_size=5"
+```
+
+**Response:**
+```
+  {
+  "files": [
+    {
+      "owner_id": "019a5ac0-e9a0-7645-91d7-4cab346fef34",
+      "last_name": "Wonderland",
+      "first_name": "alice",
+      "file_id": "019aa7de-97b0-7d6b-af94-5a0e203ece41",
+      "filename": "test_doc.txt",
+      "mime_type": "application/octet-stream",
+      "size_bytes": 46,
+      "thumbnail_key": {
+        "String": "",
+        "Valid": false
+      },
+      "checksum": "008aa47eb4515f3974d9558b0bafe981eaaa5852950ead221fa9ffef09fe959a",
+      "tags": [],
+      "version": 0
+    }
+  ],
+  "metadata": {
+    "current_page": 1,
+    "page_size": 5,
+    "first_page": 1,
+    "last_page": 1,
+    "total_records": 1
+  }
+}
+```
+-----
+
+## 🔟 Get File Metadata
+
+Retrieves details about a specific file.
+  * You must be the owner and authenticated
+
+```bash
+curl -X GET http://localhost:8080/api/v1/files/$FILE_ID \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "file": {
+    "file_id": "019aa7de-97b0-7d6b-af94-5a0e203ece41",
+    "owner_id": "019a5ac0-e9a0-7645-91d7-4cab346fef34",
+    "filename": "test_doc.txt",
+    "mime_type": "application/octet-stream",
+    "storage_key": "users/019a5ac0-e9a0-7645-91d7-4cab346fef34/395eccb4-191d-4eba-a480-6de7f1ff1763.txt",
+    "size_bytes": 46,
+    "visibility": "public",
+    "thumbnail_key": {
+      "String": "",
+      "Valid": false
+    },
+    "checksum": "008aa47eb4515f3974d9558b0bafe981eaaa5852950ead221fa9ffef09fe959a",
+    "tags": [],
+    "version": 1
+  }
+}
+```
+
+-----
+
+## 1️⃣1️⃣ Download a File
+
+This streams the binary content of the file. We use the `--output` flag to save it locally instead of printing binary data to the console.
+***NOTE:*** Authorization header is optional here, its however used to allow file owners to download their own files even if the files are private.
+```bash
+curl -X GET http://localhost:8080/api/v1/files/$FILE_ID/download \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --output downloaded_test.txt
+```
+
+OR
+
+```bash
+  curl -X GET http://localhost:8080/api/v1/files/$FILE_ID/download \
+  --output downloaded_test.txt
+```
+
+**Verify the content:**
+
+```bash
+cat downloaded_test.txt
+# Output: Hello, this is a test document for fileShare!
+```
+
+-----
+
+## 1️⃣2️⃣ Delete a File
+
+Permanently marks a file as deleted. Only the owner can do this.
+```bash
+curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": 0
+  }'
+
+```
+
+**Response:**
+
+```json
+{
+    "message": "file deleted successfully"
+}
+```
+
+If you try to `GET` the metadata of this file again, you should receive a **404 Not Found**.
+```bash
+curl -v http://localhost:8080/api/v1/files/$FILE_ID \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "error": "the record does not exist"
+}
+```

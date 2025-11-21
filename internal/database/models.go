@@ -260,7 +260,7 @@ type File struct {
 	SizeBytes    int64          `json:"size_bytes"`
 	Visibility   FileVisibility `json:"visibility"`
 	ThumbnailKey sql.NullString `json:"thumbnail_key"`
-	Checksum     sql.NullString `json:"checksum"`
+	Checksum     string         `json:"checksum"`
 	Tags         []string       `json:"tags"`
 	IsDeleted    bool           `json:"is_deleted"`
 	DeletedAt    sql.NullTime   `json:"deleted_at"`

@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/i-christian/fileShare/internal/auth"
+	"github.com/i-christian/fileShare/internal/files"
 	"github.com/i-christian/fileShare/internal/middlewares"
 	"github.com/i-christian/fileShare/internal/public"
 	"github.com/i-christian/fileShare/internal/user"
@@ -20,7 +21,7 @@ type RoutesConfig struct {
 	LimiterEnabled bool
 }
 
-func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler, pH *public.PublicHandler) http.Handler {
+func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler, pH *public.PublicHandler, fH *files.FileHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares
@@ -59,6 +60,21 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 				r.Use(middlewares.RequireActivatedUser)
 				r.Get("/me", uH.MyProfile)
 				r.Post("/api-keys", aH.CreateAPIKey)
+			})
+		})
+
+		r.Route("/files", func(r chi.Router) {
+			r.Use(middlewares.AuthMiddleware(authService, apiKeyService))
+			r.Get("/", fH.ListPublicFiles)
+			r.Get("/{id}/download", fH.Download)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middlewares.RequireActivatedUser)
+
+				r.Post("/upload", fH.Upload)
+				r.Get("/me", fH.ListMyFiles)
+				r.Get("/{id}", fH.GetMetadata)
+				r.Put("/{id}", fH.Delete)
 			})
 		})
 	})

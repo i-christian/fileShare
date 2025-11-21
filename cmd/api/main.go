@@ -24,6 +24,7 @@ type config struct {
 	env             string
 	domain          string
 	version         string
+	maxUploadSize   uint64
 	jwtSecret       string
 	apiKeyPrefix    string
 	jwtTTL          time.Duration
@@ -99,6 +100,14 @@ func parseConfig() (config, error) {
 
 	mailPort, _ := strconv.Atoi(utils.GetEnvOrFile("MAILTRAP_SMTP_PORT"))
 
+	var parsedValue uint64
+	parsedValue, err = strconv.ParseUint(utils.GetEnvOrFile("MAX_UPLOAD_SIZE"), 10, 64)
+	if err != nil || parsedValue == 0 {
+		// Set maximum default size to 200MB
+		parsedValue = 200 << 20
+	}
+
+	cfg.maxUploadSize = parsedValue
 	cfg.port = port
 	cfg.env = utils.GetEnvOrFile("ENV")
 	cfg.domain = utils.GetEnvOrFile("DOMAIN")

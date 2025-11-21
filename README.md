@@ -78,7 +78,8 @@ flowchart LR
 | `GET`    | `/api/v1/user/me`             | Get current user profile          | ✅         |
 | `POST`   | `/api/v1/user/api-keys`       | Create an API Key                 | ✅         |
 | `POST`   | `/api/v1/files/upload`        | Upload new file (supports chunks) | ✅         |
-| `GET`    | `/api/v1/files`               | List user files                   | ✅         |
+| `GET`    | `/api/v1/files`               | List public files                 | ✅         |
+| `GET`    | `/api/v1/files/me`            | List user files                   | ✅         |
 | `GET`    | `/api/v1/files/{id}`          | Get file metadata                 | ✅         |
 | `GET`    | `/api/v1/files/{id}/download` | Download file                     | ✅         |
 | `DELETE` | `/api/v1/files/{id}`          | Delete file                       | ✅         |

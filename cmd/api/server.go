@@ -17,10 +17,12 @@ import (
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
+	"github.com/i-christian/fileShare/internal/files"
 	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/public"
 	"github.com/i-christian/fileShare/internal/router"
 	"github.com/i-christian/fileShare/internal/user"
+	"github.com/i-christian/fileShare/internal/utils"
 )
 
 func (app *application) serve(dbConn *sql.DB) error {
@@ -35,15 +37,20 @@ func (app *application) serve(dbConn *sql.DB) error {
 		return fmt.Errorf("failed to setup mail service: %w", err)
 	}
 
-	// fileStore := utils.SetUpFileStorage(app.logger)
+	fileStorage := utils.SetUpFileStorage(app.logger)
 	psqlService := database.New(dbConn)
 
 	publicHandler := public.NewPublicHandler(app.config.env, app.config.version, app.logger)
+
 	authService := auth.NewAuthService(psqlService, app.config.jwtSecret, app.config.jwtTTL, app.logger)
 	apiKeyService := auth.NewApiKeyService(8, app.config.apiKeyPrefix, psqlService, app.logger, &app.wg)
 	authHandler := auth.NewAuthHandler(authService, apiKeyService, app.config.refreshTokenTTL, app.logger, mailService, &app.wg)
+
 	userService := user.NewUserService(psqlService, app.logger)
 	userHandler := user.NewUserHandler(userService)
+
+	fileService := files.NewFileService(psqlService, fileStorage, app.logger)
+	fileHandler := files.NewFileHandler(app.config.maxUploadSize, fileService, app.logger)
 
 	routeConfig := &router.RoutesConfig{
 		Domain:         app.config.domain,
@@ -51,7 +58,7 @@ func (app *application) serve(dbConn *sql.DB) error {
 		Burst:          app.config.limiter.burst,
 		LimiterEnabled: app.config.limiter.enabled,
 	}
-	r := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler, publicHandler)
+	r := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler, publicHandler, fileHandler)
 
 	publishMetrics(dbConn, app.config.version)
 

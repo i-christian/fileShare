@@ -3,11 +3,10 @@ package utils
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/i-christian/fileShare/internal/filestore"
@@ -15,7 +14,7 @@ import (
 
 // ValidateEnvVars checks if required env vars are all set during server startup
 func ValidateEnvVars(logger *slog.Logger) {
-	requiredVars := []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "PORT", "DOMAIN", "JWT_SECRET", "PROJECT_NAME", "GOOSE_DRIVER", "GOOSE_MIGRATION_DIR", "SUPERUSER_EMAIL", "ENV", "UPLOADS_DIR", "PROJECT_NAME"}
+	requiredVars := []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "PORT", "DOMAIN", "JWT_SECRET", "PROJECT_NAME", "GOOSE_DRIVER", "GOOSE_MIGRATION_DIR", "SUPERUSER_EMAIL", "ENV", "UPLOADS_DIR", "PROJECT_NAME", "MAX_UPLOAD_SIZE"}
 	for _, v := range requiredVars {
 		if os.Getenv(v) == "" {
 			logger.Error(fmt.Sprintf("Environment variable %s is required", v))
@@ -68,6 +67,18 @@ func SetUpFileStorage(logger *slog.Logger) filestore.FileStorage {
 		os.Exit(1)
 	}
 
+	subDirsToCreate := []string{
+		"users",
+	}
+
+	for _, subDir := range subDirsToCreate {
+		fullPath := filepath.Join(uploadsDir, subDir)
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
+			logger.Error("Failed to create subdirectory within uploads", "path", fullPath, "error", err)
+			os.Exit(1)
+		}
+	}
+
 	fileStore, err := filestore.NewDiskStorage(uploadsDir)
 	if err != nil {
 		logger.Error("Failed to initialize disk storage", "error", err)
@@ -93,43 +104,16 @@ func CleanUpUserFiles(fileStore filestore.FileStorage, logger *slog.Logger, path
 	}
 }
 
-// IsValidFileType checks if the file is safe to upload.
-// It blocks executables and scripts but allows general content.
-func IsValidFileType(file io.ReadSeeker, filename string) (string, error) {
-	ext := strings.ToLower(filepath.Ext(filename))
-
-	blockedExtensions := map[string]bool{
-		".exe": true, ".dll": true, ".so": true, ".bat": true, ".cmd": true,
-		".sh": true, ".php": true, ".pl": true, ".cgi": true, ".jar": true,
-		".vbs": true, ".powershell": true, ".js": true,
+// ReadInt is a helper for query params
+func ReadInt(qs map[string][]string, key string, defaultValue int) int {
+	s := qs[key]
+	if len(s) == 0 {
+		return defaultValue
 	}
 
-	if blockedExtensions[ext] {
-		return "", fmt.Errorf("file extension '%s' is not allowed for security reasons", ext)
+	i, err := strconv.Atoi(s[0])
+	if err != nil {
+		return defaultValue
 	}
-
-	fileHeader := make([]byte, 512)
-	if _, err := file.Read(fileHeader); err != nil && err != io.EOF {
-		return "", fmt.Errorf("failed to read file header: %w", err)
-	}
-
-	// Reset file pointer to start
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", fmt.Errorf("failed to reset file pointer: %w", err)
-	}
-
-	contentType := http.DetectContentType(fileHeader)
-
-	blockedMimes := map[string]bool{
-		"application/x-dosexec":   true,
-		"application/x-sh":        true,
-		"application/x-httpd-php": true,
-		"application/javascript":  true,
-	}
-
-	if blockedMimes[contentType] {
-		return "", fmt.Errorf("detected blocked content type: %s", contentType)
-	}
-
-	return contentType, nil
+	return i
 }

@@ -59,7 +59,7 @@ func (s *DiskStorage) Get(path string) (io.Reader, error) {
 	return s.root.Open(path)
 }
 
-// GetPath retrieves the root path to files directory
+// GetRootPath retrieves the root path to files directory
 func (s *DiskStorage) GetRootPath() string {
 	return s.root.Name()
 }

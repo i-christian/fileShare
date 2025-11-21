@@ -1,7 +1,18 @@
+-- name: GetFileByChecksum :one
+-- GetFileByChecksum function returns an existing file storage key to avoid file duplications
+select
+    count(checksum),
+    storage_key
+from files
+    where checksum = $1
+        and user_id = $2
+        and is_deleted = false
+    group by storage_key;
+
 -- name: CreateFile :one
 insert into files (user_id, filename, storage_key, mime_type, size_bytes, checksum)
     values($1, $2, $3, $4, $5, $6)
-returning *;
+returning file_id, filename, mime_type, size_bytes, created_at, visibility, version;
 
 -- name: GetFileInfo :one
 -- Retrieve metadata of a file from the database.
@@ -9,8 +20,8 @@ select
     file_id,
     user_id as owner_id,
     filename,
-    storage_key,
     mime_type,
+    storage_key,
     size_bytes,
     visibility,
     thumbnail_key,
@@ -32,25 +43,46 @@ from users u
         on u.user_id = f.user_id
         and f.file_id = $1;
 
--- name: ListFiles :many
+-- name: ListPublicFiles :many
 select
-    u.user_id,
+    u.user_id as owner_id,
     u.last_name,
     u.first_name,
-    u.email,
     f.file_id,
     f.filename,
-    f.storage_key,
     f.mime_type,
     f.size_bytes,
-    f.visibility,
     f.thumbnail_key,
     f.checksum,
     f.tags,
     f.version
 from files f
     join users u
-        on f.user_id = u.user_id;
+        on f.user_id = u.user_id
+    where f.visibility = 'public'
+        and f.is_deleted = false
+    order by f.created_at desc
+    limit $1 offset $2;
+
+-- name: CountPublicFiles :one
+select
+    count(*)
+from files
+    where visibility = 'public'
+        and is_deleted = false;
+
+-- name: ListUserFiles :many
+select 
+    f.file_id, f.filename, f.mime_type, f.size_bytes, f.visibility, f.created_at, f.tags
+from files f
+    where f.user_id = $1
+        and f.is_deleted = false
+    order by f.created_at desc
+    limit $2 offset $3;
+
+-- name: CountUserFiles :one
+select count(*) from files
+    where user_id = $1 and is_deleted = false;
 
 -- name: UpdateFileName :exec
 update files
