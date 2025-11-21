@@ -5,7 +5,7 @@ confirm:
 # Build the application
 build:
 	@echo "Building..."
-	@go build -ldflags="-s" -buildvcs=true -o=./main ./cmd/api
+	@go build -ldflags="-s" -buildvcs=true -o=./bin/main ./cmd/api
 	@GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/main ./cmd/api
 
 # Run the application
@@ -21,7 +21,7 @@ test:
 # Clean the binary
 clean: confirm
 	@echo "Cleaning..."
-	@rm -f main
+	@rm -rf ./bin
 
 # Development Docker
 docker-dev-up:
