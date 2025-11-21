@@ -60,6 +60,9 @@ func (s *AuthService) Register(ctx context.Context, email, firstName, lastName, 
 		TokenHash: hashByte,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
+	if err != nil {
+		return ApiUser{}, err
+	}
 
 	return ApiUser{
 		UserID:          user.UserID,
@@ -202,6 +205,9 @@ func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password stri
 		CreatedAt: time.Now(),
 		Revoked:   false,
 	})
+	if err != nil {
+		return "", "", utils.ErrUnexpectedError
+	}
 
 	return accessToken, token.Token, nil
 }

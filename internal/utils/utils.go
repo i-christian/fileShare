@@ -1,3 +1,4 @@
+// Package utils provides global helper functions for this web service
 package utils
 
 import (
@@ -12,7 +13,7 @@ import (
 	"github.com/i-christian/fileShare/internal/filestore"
 )
 
-// Checks if required env vars are all set during server startup
+// ValidateEnvVars checks if required env vars are all set during server startup
 func ValidateEnvVars(logger *slog.Logger) {
 	requiredVars := []string{"DB_HOST", "DB_PORT", "DB_NAME", "DB_USERNAME", "PORT", "DOMAIN", "JWT_SECRET", "PROJECT_NAME", "GOOSE_DRIVER", "GOOSE_MIGRATION_DIR", "SUPERUSER_EMAIL", "ENV", "UPLOADS_DIR", "PROJECT_NAME"}
 	for _, v := range requiredVars {
@@ -23,7 +24,7 @@ func ValidateEnvVars(logger *slog.Logger) {
 	}
 }
 
-// ToggleEnvVar chooses between secretfile or environment variable
+// ToggleEnvOrSecret chooses between secretfile or environment variable
 func ToggleEnvOrSecret(fileEnv, envVar string) string {
 	var value string
 	if filePath := fileEnv; filePath != "" {
@@ -92,38 +93,43 @@ func CleanUpUserFiles(fileStore filestore.FileStorage, logger *slog.Logger, path
 	}
 }
 
-// IsValidFileType checks both the file extension and the actual content type.
-func IsValidFileType(file io.Reader, filename string) (string, error) {
+// IsValidFileType checks if the file is safe to upload.
+// It blocks executables and scripts but allows general content.
+func IsValidFileType(file io.ReadSeeker, filename string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".pdf", ".jpg", ".jpeg", ".png", ".txt", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".csv":
-	default:
-		return "", fmt.Errorf("file '%s' has an invalid extension: %s", filename, ext)
+
+	blockedExtensions := map[string]bool{
+		".exe": true, ".dll": true, ".so": true, ".bat": true, ".cmd": true,
+		".sh": true, ".php": true, ".pl": true, ".cgi": true, ".jar": true,
+		".vbs": true, ".powershell": true, ".js": true,
+	}
+
+	if blockedExtensions[ext] {
+		return "", fmt.Errorf("file extension '%s' is not allowed for security reasons", ext)
 	}
 
 	fileHeader := make([]byte, 512)
 	if _, err := file.Read(fileHeader); err != nil && err != io.EOF {
-		return "", fmt.Errorf("failed to read file header for type detection: %w", err)
+		return "", fmt.Errorf("failed to read file header: %w", err)
 	}
+
+	// Reset file pointer to start
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
 	contentType := http.DetectContentType(fileHeader)
 
-	if seeker, ok := file.(io.Seeker); ok {
-		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
-			return "", fmt.Errorf("failed to seek back to the start of the file: %w", err)
-		}
+	blockedMimes := map[string]bool{
+		"application/x-dosexec":   true,
+		"application/x-sh":        true,
+		"application/x-httpd-php": true,
+		"application/javascript":  true,
 	}
 
-	switch contentType {
-	case "application/pdf", "image/jpeg", "image/png", "text/plain", "text/csv",
-		"application/msword",
-		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		"application/vnd.ms-excel",
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		"application/vnd.ms-powerpoint",
-		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		"application/zip":
-		return contentType, nil
-	default:
-		return "", fmt.Errorf("file '%s' has an invalid content type: %s", filename, contentType)
+	if blockedMimes[contentType] {
+		return "", fmt.Errorf("detected blocked content type: %s", contentType)
 	}
+
+	return contentType, nil
 }
