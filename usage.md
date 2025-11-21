@@ -255,13 +255,13 @@ curl -X GET http://localhost:8080/api/v1/user/me \
   ```
 2. Run with the api running with rate limiter disabled using:
 ```
-  go run cmd/api/main.go -limiter-enabled=false
+  go run ./cmd/api -limiter-enabled=false
 ```
 3. Test the login endpoint as this example:
 ```
   BODY='{"email": "alice@example.com", "password": "supersecret123"}'
   
-  hey -d "$BODY" -m "POST" curl -X POST http://localhost:8080/api/v1/auth/login
+  hey -d "$BODY" -m "POST" http://localhost:8080/api/v1/auth/login
 ```
 
 **Response:**

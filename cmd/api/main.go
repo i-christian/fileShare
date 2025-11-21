@@ -1,53 +1,55 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"encoding/hex"
-	"expvar"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
-	"net/http"
 	"os"
-	"os/signal"
-	"runtime"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/i-christian/fileShare/internal/auth"
-	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
-	"github.com/i-christian/fileShare/internal/mailer"
-	"github.com/i-christian/fileShare/internal/public"
-	"github.com/i-christian/fileShare/internal/router"
-	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
 	"github.com/i-christian/fileShare/internal/vcs"
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type Config struct {
-	logger          *slog.Logger
+// config holds all configuration for the application
+type config struct {
+	port            int
+	env             string
 	domain          string
+	version         string
 	jwtSecret       string
 	apiKeyPrefix    string
-	environment     string
-	version         string
-	port            int
 	jwtTTL          time.Duration
 	refreshTokenTTL time.Duration
+	limiter         struct {
+		rps     float64
+		burst   int
+		enabled bool
+	}
+	mail struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
+}
+
+// application holds the dependencies for the HTTP handlers, helpers, and middleware.
+type application struct {
+	config config
+	logger *slog.Logger
+	wg     sync.WaitGroup
 }
 
 func main() {
-	// Create a done channel to signal when the shutdown is complete
-	done := make(chan bool, 1)
-	var wg sync.WaitGroup
-
 	var logger *slog.Logger
 	if utils.GetEnvOrFile("ENV") == "testing" {
 		logger = slog.New(slog.DiscardHandler)
@@ -55,160 +57,88 @@ func main() {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 	}
 
+	cfg, err := parseConfig()
+	if err != nil {
+		logger.Error("failed to parse config", "error", err)
+		os.Exit(1)
+	}
+
 	utils.ValidateEnvVars(logger)
-	_ = utils.SetUpFileStorage(logger)
 
-	jwtSecret, err := hex.DecodeString(utils.GetEnvOrFile("JWT_SECRET"))
+	dbConn, err := db.InitialiseDB(utils.GetEnvOrFile("GOOSE_DRIVER"))
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("failed to initialise database", "error", err)
+		os.Exit(1)
+	}
+	defer dbConn.Close()
+
+	if err := runMigrations(dbConn, logger); err != nil {
+		logger.Error("failed to run migrations", "error", err)
 		os.Exit(1)
 	}
 
-	conn, err := db.InitialiseDB(utils.GetEnvOrFile("GOOSE_DRIVER"))
-	if err != nil {
-		logger.Error("failed to initialise database", "error message", err.Error())
+	app := &application{
+		config: cfg,
+		logger: logger,
+	}
+
+	if err := app.serve(dbConn); err != nil {
+		logger.Error("server terminated", "error", err)
 		os.Exit(1)
 	}
+}
+
+func parseConfig() (config, error) {
+	var cfg config
 
 	port, _ := strconv.Atoi(utils.GetEnvOrFile("PORT"))
-	apiKeyPrefix := security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
-	domain := utils.GetEnvOrFile("DOMAIN")
-	env := utils.GetEnvOrFile("ENV")
-	version := vcs.Version()
-	config := &Config{
-		port:            port,
-		domain:          domain,
-		jwtSecret:       string(jwtSecret),
-		environment:     env,
-		version:         version,
-		jwtTTL:          15 * time.Minute,
-		apiKeyPrefix:    apiKeyPrefix,
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		logger:          logger,
+	jwtSecret, err := hex.DecodeString(utils.GetEnvOrFile("JWT_SECRET"))
+	if err != nil {
+		return cfg, fmt.Errorf("invalid JWT secret: %w", err)
 	}
 
-	routeConfig := &router.RoutesConfig{
-		Domain: config.domain,
-	}
-	flag.Float64Var(&routeConfig.Rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
-	flag.IntVar(&routeConfig.Burst, "limiter-burst", 4, "Rate limiter maximum burst")
-	flag.BoolVar(&routeConfig.LimiterEnabled, "limiter-enabled", true, "Enable rate limiter")
+	mailPort, _ := strconv.Atoi(utils.GetEnvOrFile("MAILTRAP_SMTP_PORT"))
+
+	cfg.port = port
+	cfg.env = utils.GetEnvOrFile("ENV")
+	cfg.domain = utils.GetEnvOrFile("DOMAIN")
+	cfg.version = vcs.Version()
+	cfg.jwtSecret = string(jwtSecret)
+	cfg.apiKeyPrefix = security.ShortProjectPrefix(utils.GetEnvOrFile("PROJECT_NAME"))
+	cfg.jwtTTL = 15 * time.Minute
+	cfg.refreshTokenTTL = 7 * 24 * time.Hour
+
+	cfg.mail.host = utils.GetEnvOrFile("MAILTRAP_SMTP_HOST")
+	cfg.mail.port = mailPort
+	cfg.mail.username = utils.GetEnvOrFile("MAILTRAP_USER")
+	cfg.mail.password = utils.GetEnvOrFile("MAILTRAP_PASSWORD")
+	cfg.mail.sender = utils.GetEnvOrFile("MAILTRAP_SENDER_EMAIL")
+
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
 	displayVersion := flag.Bool("version", false, "Display version and exit")
 
 	flag.Parse()
+
 	if *displayVersion {
-		fmt.Printf("Version:\t%s\n", version)
+		fmt.Printf("Version:\t%s\n", cfg.version)
 		os.Exit(0)
 	}
 
-	// Set up database in-app database migrations
-	func() {
-		var err error
-		for i := range 10 {
-			log.Printf("Trying to run database migration: %d\n", i)
-			err = db.SetUpMigration(conn)
-			if err == nil {
-				break
-			}
-			time.Sleep(2 * time.Second)
-		}
-		if err != nil {
-			logger.Error("failed to run migrations", "error message", err.Error())
-			os.Exit(1)
-		}
-	}()
-
-	mailHost := utils.GetEnvOrFile("MAILTRAP_SMTP_HOST")
-	mailPort, _ := strconv.Atoi(utils.GetEnvOrFile("MAILTRAP_SMTP_PORT"))
-	mailUserName := utils.GetEnvOrFile("MAILTRAP_USER")
-	mailPassword := utils.GetEnvOrFile("MAILTRAP_PASSWORD")
-	mailSender := utils.GetEnvOrFile("MAILTRAP_SENDER_EMAIL")
-
-	mailService, err := mailer.New(mailHost, mailPort, mailUserName, mailPassword, mailSender)
-	if err != nil {
-		utils.WriteServerError(logger, "failed to setup mail service", err)
-		os.Exit(1)
-	}
-
-	psqlService := database.New(conn)
-	publicHandler := public.NewPublicHandler(config.environment, config.version, logger)
-
-	authService := auth.NewAuthService(psqlService, config.jwtSecret, config.jwtTTL, config.logger)
-	apiKeyService := auth.NewApiKeyService(8, config.apiKeyPrefix, psqlService, config.logger, &wg)
-	authHandler := auth.NewAuthHandler(authService, apiKeyService, config.refreshTokenTTL, config.logger, mailService, &wg)
-
-	userService := user.NewUserService(psqlService, config.logger)
-	userHandler := user.NewUserHandler(userService)
-
-	router := router.RegisterRoutes(routeConfig, authHandler, authService, apiKeyService, userHandler, publicHandler)
-
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", config.port),
-		Handler:      router,
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  20 * time.Second,
-		WriteTimeout: 40 * time.Second,
-		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
-	}
-
-	expvar.NewString("version").Set(version)
-	expvar.Publish("goroutines", expvar.Func(func() any {
-		return runtime.NumGoroutine()
-	}))
-	expvar.Publish("database", expvar.Func(func() any {
-		return db.Health(conn)
-	}))
-	expvar.Publish("timestamp", expvar.Func(func() any {
-		return time.Now().Unix()
-	}))
-
-	go gracefulShutdown(conn, httpServer, done, &wg, logger)
-
-	log.Printf("The server is starting on: http://%s:%d in %s environment\n", config.domain, config.port, config.environment)
-	err = httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		logger.Error(fmt.Sprintf("http server error: %s", err))
-		os.Exit(1)
-	}
-
-	// Wait for the graceful shutdown to complete
-	<-done
-	logger.Info("Graceful shutdown complete.")
+	return cfg, nil
 }
 
-func gracefulShutdown(
-	conn *sql.DB,
-	httpServer *http.Server,
-	done chan bool,
-	wg *sync.WaitGroup,
-	logger *slog.Logger,
-) {
-	// Create context that listens for the interrupt signal from the OS.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	// Listen for the interrupt signal.
-	<-ctx.Done()
-
-	slog.Info("Shutting down gracefully, press Ctrl+C again to force")
-
-	// The context is used to inform the server it has 10 seconds to finish
-	// the request it is currently handling
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := httpServer.Shutdown(ctx); err != nil {
-		slog.Info("Server forced to shutdown with error, ", "Message", err.Error())
+func runMigrations(conn *sql.DB, logger *slog.Logger) error {
+	var err error
+	for i := range 10 {
+		logger.Info("running database migration", "attempt", i+1)
+		err = db.SetUpMigration(conn)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
 	}
-
-	logger.Info("Completing background tasks")
-	wg.Wait()
-
-	if err := conn.Close(); err != nil {
-		logger.Error("failed to close database connection", "error", err)
-	} else {
-		logger.Info("Database connection disconnected")
-	}
-	// Notify the main goroutine that the shutdown is complete
-	done <- true
+	return fmt.Errorf("migration failed after retries: %w", err)
 }

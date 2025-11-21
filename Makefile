@@ -11,7 +11,7 @@ build:
 # Run the application
 run:
 	@echo "Running with rate limiter disabled..."
-	@go run cmd/api/main.go -limiter-enabled=false
+	@go run ./cmd/api -limiter-enabled=false
 
 # Test the application
 test:

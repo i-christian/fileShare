@@ -63,7 +63,6 @@ flowchart LR
 | **Database**         | PostgreSQL                                            | Primary relational data store.       |
 | **Cache/Queue**      | Redis                                                 | In-memory cache and job queue.       |
 | **Containerization** | Docker & Docker Compose                               | Consistent dev/prod environments.    |
-| **Docs**             | Swagger / OpenAPI                                     | Auto-generated API documentation.    |
 
 ---
 
