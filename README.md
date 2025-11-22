@@ -9,7 +9,6 @@ It exposes a **RESTful JSON API** that handles authentication, file uploads, sha
 
 - 🔐 **JWT Authentication** – Secure stateless authentication with refresh tokens.
 - 🚦 **Rate Limiting** – Protects the API from abuse using per-user/IP limits.
-- 🧩 **Chunked & Resumable Uploads** – Efficient handling of large files.
 - 🔗 **Secure Share Links** – Time-limited, optionally password-protected share URLs.
 - 🗃️ **PostgreSQL Storage** – Reliable relational database for metadata.
 - ⚙️ **Redis Integration** – Caching and background job queue.
@@ -83,6 +82,8 @@ flowchart LR
 | `GET`    | `/api/v1/files/{id}`          | Get file metadata                 | ✅         |
 | `GET`    | `/api/v1/files/{id}/download` | Download file                     | ✅         |
 | `DELETE` | `/api/v1/files/{id}`          | Delete file                       | ✅         |
+| `PUT`    | `/api/v1/files/{id}/visible`  | Change file visibility            | ✅         |
+| `PUT`    | `/api/v1/files/{id}/edit`     | Change filename                   | ✅         |
 | `POST`   | `/api/v1/files/{id}/share`    | Generate shareable link           | ✅         |
 | `GET`    | `/api/v1/share/{token}`       | Access shared file                | ✅         |
 
@@ -94,41 +95,14 @@ For instructions on how to get started with this application, please refer to th
 This documentation provides instructions on how to set up your environment and develop the application.
 
 ---
-
----
 ## Endpoints Testing 
-For basic curl commands to test the api endpoints refer to [USAGE](/usage.md).
+For basic curl commands to test the api endpoints refer to [API USAGE](/usage.md).
 
 This documentation provide simple curl commands to test the api without need for postman. However you can also use Postman if you prefer than.
 
 ---
 
-## 🧵 Project Structure
-
-```
-fileShare/
-├── cmd/
-│   └── api/main.go
-├── internal/
-│   ├── auth/          # JWT, password hashing, & handlers
-│   ├── file/          # Upload, download, share handlers
-│   ├── user/          # User service & handlers 
-│   ├── db/            # DB connection, migrations
-│   ├── middleware/    # Rate limiting, CORS, logging
-│   ├── worker/        # Background jobs
-│   └── utils/         # Helpers, constants
-├── docker-compose.yml
-├── go.mod
-├── go.sum
-└── README.md
-```
-
----
-
 ## 🚀 Roadmap
-
-* [ ] Add gRPC endpoints (optional)
 * [ ] Implement file versioning
 * [ ] Add virus scanning worker
 * [ ] Integrate Digital Ocean spaces
-* [ ] Role-based permissions

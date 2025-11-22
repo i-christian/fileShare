@@ -1,4 +1,6 @@
-# 🔐 Authentication Flow (Testing with cURL)
+# API usage flow
+
+### 🔐 Authentication Flow (Testing with cURL)
 
 Below is a full working example showing how to test user signup, login, and token refresh using `curl`.
 
@@ -493,7 +495,7 @@ Try checking the file metadata again, visibility should be public now and the ve
 
 -----
 ## 12 Change filename
-This allows the file owner to change the filename status.
+This allows the file owner to change the file visibility status.
 ```bash
 curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID/edit \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -506,7 +508,7 @@ curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID/edit \
 **Response:**
 ```
 {
-        "message": "filename has been updated to renamed_file.txt"
+    "message": "file visibility has been updated to public"
 }
 ```
 

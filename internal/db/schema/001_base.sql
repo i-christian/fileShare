@@ -93,17 +93,6 @@ CREATE TABLE share_links (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Upload Sessions table for chunked uploads
-CREATE TABLE upload_sessions (
-    upload_id UUID PRIMARY KEY DEFAULT uuidv7(),
-    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    total_chunks INT NOT NULL,
-    uploaded_chunks INT DEFAULT 0,
-    status upload_status DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
@@ -128,11 +117,9 @@ CREATE INDEX idx_share_links_file_id ON share_links(file_id);
 CREATE INDEX idx_share_links_token ON share_links(token);
 CREATE INDEX idx_share_links_expires_at ON share_links (expires_at);
 
-CREATE INDEX idx_upload_sessions_user_id ON upload_sessions(user_id);
 
 -- +goose Down
 -- Drop tables
-DROP TABLE IF EXISTS upload_sessions;
 DROP TABLE IF EXISTS share_links;
 DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS api_keys;

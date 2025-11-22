@@ -50,11 +50,6 @@ CREATE TRIGGER trigger_set_updated_at_files
         FOR EACH ROW
             EXECUTE FUNCTION set_updated_at();
 
-CREATE TRIGGER trigger_set_updated_at_upload_sessions
-    BEFORE UPDATE ON upload_sessions
-        FOR EACH ROW
-            EXECUTE FUNCTION set_updated_at();
-
 CREATE TRIGGER trigger_protect_last_admin
     BEFORE UPDATE OR DELETE ON users
         FOR EACH ROW
@@ -64,7 +59,6 @@ CREATE TRIGGER trigger_protect_last_admin
 -- +goose Down
 -- Drop triggers first
 DROP TRIGGER IF EXISTS trigger_protect_last_admin ON users;
-DROP TRIGGER IF EXISTS trigger_set_updated_at_upload_sessions ON upload_sessions;
 DROP TRIGGER IF EXISTS trigger_set_updated_at_files ON files;
 DROP TRIGGER IF EXISTS trigger_set_updated_at_users ON users;
 
