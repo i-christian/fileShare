@@ -103,8 +103,8 @@ func parseConfig() (config, error) {
 	var parsedValue uint64
 	parsedValue, err = strconv.ParseUint(utils.GetEnvOrFile("MAX_UPLOAD_SIZE"), 10, 64)
 	if err != nil || parsedValue == 0 {
-		// Set maximum default size to 200MB
-		parsedValue = 200 << 20
+		// Set maximum default size to 100MB
+		parsedValue = 100 << 20
 	}
 
 	cfg.maxUploadSize = parsedValue
