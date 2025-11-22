@@ -112,3 +112,9 @@ update files
         version = version + 1
 where file_id = $2
     and version = $3;
+
+-- name: UpdateFileThumbnail :exec
+update files
+    set thumbnail_key = $1,
+        updated_at = now()
+where file_id = $2;

@@ -114,6 +114,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateFileNameStmt, err = db.PrepareContext(ctx, updateFileName); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateFileName: %w", err)
 	}
+	if q.updateFileThumbnailStmt, err = db.PrepareContext(ctx, updateFileThumbnail); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateFileThumbnail: %w", err)
+	}
 	return &q, nil
 }
 
@@ -269,6 +272,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateFileNameStmt: %w", cerr)
 		}
 	}
+	if q.updateFileThumbnailStmt != nil {
+		if cerr := q.updateFileThumbnailStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateFileThumbnailStmt: %w", cerr)
+		}
+	}
 	return err
 }
 
@@ -338,6 +346,7 @@ type Queries struct {
 	setFileVisibilityStmt     *sql.Stmt
 	updateApiKeyLastUsedStmt  *sql.Stmt
 	updateFileNameStmt        *sql.Stmt
+	updateFileThumbnailStmt   *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -374,5 +383,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		setFileVisibilityStmt:     q.setFileVisibilityStmt,
 		updateApiKeyLastUsedStmt:  q.updateApiKeyLastUsedStmt,
 		updateFileNameStmt:        q.updateFileNameStmt,
+		updateFileThumbnailStmt:   q.updateFileThumbnailStmt,
 	}
 }

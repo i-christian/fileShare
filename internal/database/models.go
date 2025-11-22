@@ -141,49 +141,6 @@ func (ns NullTokenPurpose) Value() (driver.Value, error) {
 	return string(ns.TokenPurpose), nil
 }
 
-type UploadStatus string
-
-const (
-	UploadStatusPending   UploadStatus = "pending"
-	UploadStatusCompleted UploadStatus = "completed"
-	UploadStatusFailed    UploadStatus = "failed"
-)
-
-func (e *UploadStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = UploadStatus(s)
-	case string:
-		*e = UploadStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for UploadStatus: %T", src)
-	}
-	return nil
-}
-
-type NullUploadStatus struct {
-	UploadStatus UploadStatus `json:"upload_status"`
-	Valid        bool         `json:"valid"` // Valid is true if UploadStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullUploadStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.UploadStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.UploadStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullUploadStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.UploadStatus), nil
-}
-
 type UserRole string
 
 const (
@@ -276,28 +233,6 @@ type RefreshToken struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 	CreatedAt      time.Time `json:"created_at"`
 	Revoked        bool      `json:"revoked"`
-}
-
-type ShareLink struct {
-	ShareID         uuid.UUID      `json:"share_id"`
-	FileID          uuid.UUID      `json:"file_id"`
-	CreatedByUserID uuid.UUID      `json:"created_by_user_id"`
-	Token           string         `json:"token"`
-	PasswordHash    sql.NullString `json:"password_hash"`
-	ExpiresAt       sql.NullTime   `json:"expires_at"`
-	DownloadCount   int32          `json:"download_count"`
-	CreatedAt       time.Time      `json:"created_at"`
-}
-
-type UploadSession struct {
-	UploadID       uuid.UUID        `json:"upload_id"`
-	UserID         uuid.NullUUID    `json:"user_id"`
-	FileName       string           `json:"file_name"`
-	TotalChunks    int32            `json:"total_chunks"`
-	UploadedChunks sql.NullInt32    `json:"uploaded_chunks"`
-	Status         NullUploadStatus `json:"status"`
-	CreatedAt      sql.NullTime     `json:"created_at"`
-	UpdatedAt      sql.NullTime     `json:"updated_at"`
 }
 
 type User struct {

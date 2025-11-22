@@ -49,7 +49,7 @@ func (app *application) serve(dbConn *sql.DB) error {
 	userService := user.NewUserService(psqlService, app.logger)
 	userHandler := user.NewUserHandler(userService)
 
-	fileService := files.NewFileService(psqlService, fileStorage, app.logger)
+	fileService := files.NewFileService(psqlService, fileStorage, app.logger, &app.wg)
 	fileHandler := files.NewFileHandler(app.config.maxUploadSize, fileService, app.logger)
 
 	routeConfig := &router.RoutesConfig{

@@ -55,7 +55,7 @@ func (s *DiskStorage) Save(file io.Reader, inputPath string) (size int64, err er
 }
 
 // Get retrieves the content of the file at the specified `path` from the DiskStorage's root directory.
-func (s *DiskStorage) Get(path string) (io.Reader, error) {
+func (s *DiskStorage) Get(path string) (io.ReadCloser, error) {
 	return s.root.Open(path)
 }
 

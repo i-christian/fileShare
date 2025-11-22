@@ -403,3 +403,20 @@ func (q *Queries) UpdateFileName(ctx context.Context, arg UpdateFileNameParams) 
 	err := row.Scan(&filename)
 	return filename, err
 }
+
+const updateFileThumbnail = `-- name: UpdateFileThumbnail :exec
+update files
+    set thumbnail_key = $1,
+        updated_at = now()
+where file_id = $2
+`
+
+type UpdateFileThumbnailParams struct {
+	ThumbnailKey sql.NullString `json:"thumbnail_key"`
+	FileID       uuid.UUID      `json:"file_id"`
+}
+
+func (q *Queries) UpdateFileThumbnail(ctx context.Context, arg UpdateFileThumbnailParams) error {
+	_, err := q.exec(ctx, q.updateFileThumbnailStmt, updateFileThumbnail, arg.ThumbnailKey, arg.FileID)
+	return err
+}

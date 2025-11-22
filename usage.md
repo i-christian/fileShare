@@ -321,7 +321,7 @@ Ensure you have a valid `$ACCESS_TOKEN` exported from the authentication steps a
 -----
 
 ## 7️⃣ Upload a File
-
+**NOTE:** image upload generate thumbnails automatically.
 First, create a dummy file to test with:
 
 ```bash
@@ -361,6 +361,14 @@ export FILE_ID="019aabc7-9fdb-7003-b850-a02760b78401"
 ```
 
 -----
+
+#### Image files and thumbnails
+```bash
+curl -X POST http://localhost:8080/api/v1/files/upload \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -F "file=@./image.jpg"
+```
+
 
 ## 8️⃣ List "My Files" (Private & Public)
 

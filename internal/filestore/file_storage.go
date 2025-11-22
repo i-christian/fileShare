@@ -11,7 +11,7 @@ type FileStorage interface {
 
 	// Get retrieves the content of the file at the specified path.
 	// It returns an io.Reader from which the file's content can be read.
-	Get(path string) (io.Reader, error)
+	Get(path string) (io.ReadCloser, error)
 
 	// GetRootPath returns the root path of files directory
 	GetRootPath() string

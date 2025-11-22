@@ -2,6 +2,7 @@
 package files
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -11,25 +12,31 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/filestore"
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/worker"
 )
 
 type FileService struct {
 	db     *database.Queries
 	store  filestore.FileStorage
 	logger *slog.Logger
+	wg     *sync.WaitGroup
 }
 
-func NewFileService(db *database.Queries, store filestore.FileStorage, logger *slog.Logger) *FileService {
+func NewFileService(db *database.Queries, store filestore.FileStorage, logger *slog.Logger, wg *sync.WaitGroup) *FileService {
 	return &FileService{
 		db:     db,
 		store:  store,
 		logger: logger,
+		wg:     wg,
 	}
 }
 
@@ -79,7 +86,62 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 		return database.CreateFileRow{}, fmt.Errorf("database error: %w", err)
 	}
 
+	if strings.HasPrefix(contentType, "image/") {
+		worker.BackgroundTask(s.wg, s.logger, func(l *slog.Logger) {
+			s.generateThumbnail(fileRec.FileID, storageKey)
+		})
+	}
+
 	return fileRec, nil
+}
+
+// generateThumbnail creates a thumbnail for an image file
+func (s *FileService) generateThumbnail(fileID uuid.UUID, storageKey string) {
+	s.logger.Info("starting thumbnail generation", "file_id", fileID)
+
+	originalFile, err := s.store.Get(storageKey)
+	if err != nil {
+		s.logger.Error("failed to retrieve file for thumbnail", "error", err)
+		return
+	}
+	defer originalFile.Close()
+
+	img, err := imaging.Decode(originalFile)
+	if err != nil {
+		s.logger.Error("failed to decode image", "error", err)
+		return
+	}
+
+	thumbnail := imaging.Resize(img, 300, 0, imaging.Lanczos)
+
+	buf := new(bytes.Buffer)
+	err = imaging.Encode(buf, thumbnail, imaging.JPEG)
+	if err != nil {
+		s.logger.Error("failed to encode thumbnail", "error", err)
+		return
+	}
+
+	thumbKey := "thumbnails/" + uuid.New().String() + ".jpg"
+	_, err = s.store.Save(buf, thumbKey)
+	if err != nil {
+		s.logger.Error("failed to save thumbnail to storage", "error", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = s.db.UpdateFileThumbnail(ctx, database.UpdateFileThumbnailParams{
+		ThumbnailKey: sql.NullString{String: thumbKey, Valid: true},
+		FileID:       fileID,
+	})
+	if err != nil {
+		_ = s.store.Delete(thumbKey)
+		s.logger.Error("failed to update file record with thumbnail", "error", err)
+		return
+	}
+
+	s.logger.Info("thumbnail generated successfully", "file_id", fileID)
 }
 
 // GetFileMetadata retrieves file info ensuring the user owns it
@@ -100,7 +162,7 @@ func (s *FileService) GetFileMetadata(ctx context.Context, fileID uuid.UUID, use
 }
 
 // DownloadFile returns the file stream
-func (s *FileService) DownloadFile(ctx context.Context, fileID, userID uuid.UUID) (reader io.Reader, fileInfo database.GetFileInfoRow, err error) {
+func (s *FileService) DownloadFile(ctx context.Context, fileID, userID uuid.UUID) (reader io.ReadCloser, fileInfo database.GetFileInfoRow, err error) {
 	fileInfo, err = s.db.GetFileInfo(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -148,7 +210,6 @@ func (s *FileService) ListUserFiles(ctx context.Context, userID uuid.UUID, filte
 
 	meta := utils.CalculateMetadata(int(count), filters.Page, filters.PageSize)
 
-	fmt.Println(files)
 	return files, meta, nil
 }
 

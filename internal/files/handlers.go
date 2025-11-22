@@ -232,6 +232,8 @@ func (h *FileHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer stream.Close()
+
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileInfo.Filename))
 	w.Header().Set("Content-Type", fileInfo.MimeType)
 	w.Header().Set("Content-Length", strconv.FormatInt(fileInfo.SizeBytes, 10))
