@@ -29,17 +29,19 @@ func NewFileHandler(maxUploadSize uint64, service *FileService, logger *slog.Log
 	}
 }
 
+const maxMemory = 32 << 20 // 32MB
+
 // Upload handles multipart/form-data file uploads
 func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	user, ok := security.GetUserFromContext(r)
-	if !ok && !user.IsAnonymous() {
+	if !ok || user.IsAnonymous() {
 		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 		return
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxUploadSize))
 
-	if err := r.ParseMultipartForm(int64(h.maxUploadSize)); err != nil {
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
 		utils.BadRequestResponse(w, errors.New("file too big or malformed body"))
 		return
 	}
