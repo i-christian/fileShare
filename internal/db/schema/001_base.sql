@@ -4,7 +4,6 @@
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- Types
-CREATE TYPE upload_status AS ENUM ('pending', 'completed', 'failed');
 CREATE TYPE user_role AS ENUM ('admin', 'user');
 CREATE TYPE token_purpose AS ENUM ('email_verification', 'password_reset');
 CREATE TYPE file_visibility AS ENUM ('public', 'private');
@@ -81,18 +80,6 @@ CREATE TABLE files (
     version INT NOT NULL DEFAULT 1 -- for race conditions mitigation
 );
 
--- Share Links table: Manages secure, time-sensitive, and protected links
-CREATE TABLE share_links (
-    share_id UUID PRIMARY KEY DEFAULT uuidv7(),
-    file_id UUID NOT NULL REFERENCES files(file_id) ON DELETE CASCADE,
-    created_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    token TEXT NOT NULL UNIQUE,
-    password_hash VARCHAR(255),
-    expires_at TIMESTAMPTZ,
-    download_count INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
@@ -113,13 +100,8 @@ CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
 CREATE INDEX idx_api_keys_is_revoked ON api_keys(is_revoked);
 
-CREATE INDEX idx_share_links_file_id ON share_links(file_id);
-CREATE INDEX idx_share_links_token ON share_links(token);
-CREATE INDEX idx_share_links_expires_at ON share_links (expires_at);
-
 
 -- +goose Down
--- Drop tables
 DROP TABLE IF EXISTS share_links;
 DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS api_keys;
@@ -130,5 +112,4 @@ DROP TABLE IF EXISTS users;
 -- Drop types
 DROP TYPE IF EXISTS file_visibility;
 DROP TYPE IF EXISTS user_role;
-DROP TYPE IF EXISTS upload_status;
 DROP TYPE IF EXISTS api_scope;

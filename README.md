@@ -1,7 +1,7 @@
 # 📁 fileShare API — Modern File Management Backend
 
 fileShare API is a **backend service** built with **Go**, providing secure, scalable, and performant file management.  
-It exposes a **RESTful JSON API** that handles authentication, file uploads, sharing, and background processing — designed for integration with any frontend (web, mobile, CLI, etc.).
+It exposes a **RESTful JSON API** that handles authentication, file uploads, downloads, and background processing — designed for integration with any frontend (web, mobile, CLI, etc.).
 
 ---
 
@@ -9,7 +9,6 @@ It exposes a **RESTful JSON API** that handles authentication, file uploads, sha
 
 - 🔐 **JWT Authentication** – Secure stateless authentication with refresh tokens.
 - 🚦 **Rate Limiting** – Protects the API from abuse using per-user/IP limits.
-- 🔗 **Secure Share Links** – Time-limited, optionally password-protected share URLs.
 - 🗃️ **PostgreSQL Storage** – Reliable relational database for metadata.
 - ⚙️ **Redis Integration** – Caching and background job queue.
 - 🧵 **Concurrent Background Workers** – For thumbnails, virus scans, or cleanup tasks.
@@ -84,8 +83,6 @@ flowchart LR
 | `DELETE` | `/api/v1/files/{id}`          | Delete file                       | ✅         |
 | `PUT`    | `/api/v1/files/{id}/visible`  | Change file visibility            | ✅         |
 | `PUT`    | `/api/v1/files/{id}/edit`     | Change filename                   | ✅         |
-| `POST`   | `/api/v1/files/{id}/share`    | Generate shareable link           | ✅         |
-| `GET`    | `/api/v1/share/{token}`       | Access shared file                | ✅         |
 
 ---
 
