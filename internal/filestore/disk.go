@@ -37,21 +37,21 @@ func (s *DiskStorage) ensureParent(inputPath string) error {
 
 // Save writes the content of the provided io.Reader (`file`) to the
 // specified `path` within the DiskStorage's root directory
-func (s *DiskStorage) Save(file io.Reader, inputPath string) error {
-	err := s.ensureParent(inputPath)
+func (s *DiskStorage) Save(file io.Reader, inputPath string) (size int64, err error) {
+	err = s.ensureParent(inputPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	out, err := s.root.Create(inputPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer out.Close()
 
 	// Copy the content from the input reader to the newly created file.
-	_, err = io.Copy(out, file)
-	return err
+	size, err = io.Copy(out, file)
+	return size, err
 }
 
 // Get retrieves the content of the file at the specified `path` from the DiskStorage's root directory.

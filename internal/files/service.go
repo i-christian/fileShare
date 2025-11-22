@@ -3,12 +3,13 @@ package files
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"mime/multipart"
 	"path/filepath"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/filestore"
 	"github.com/i-christian/fileShare/internal/utils"
-	"github.com/i-christian/fileShare/internal/utils/security"
 )
 
 type FileService struct {
@@ -33,12 +33,23 @@ func NewFileService(db *database.Queries, store filestore.FileStorage, logger *s
 	}
 }
 
-// UploadFile handles the logic of saving the binary data and the metadata
-func (s *FileService) UploadFile(ctx context.Context, userID uuid.UUID, file multipart.File, fileSize int64, contentType string, fileName string) (database.CreateFileRow, error) {
-	checksum, err := security.CalculateChecksum(file)
+// UploadFile streams the file to storage while calculating the checksum simultaneously.
+func (s *FileService) UploadFile(ctx context.Context, userID uuid.UUID, fileStream io.Reader, contentType string, fileName string) (database.CreateFileRow, error) {
+	uniqueFilename := uuid.New().String() + filepath.Ext(fileName)
+	dirPath := filepath.Join("users", userID.String())
+	storageKey := filepath.Join(dirPath, uniqueFilename)
+
+	hasher := sha256.New()
+	tee := io.TeeReader(fileStream, hasher)
+
+	fileSize, err := s.store.Save(tee, storageKey)
 	if err != nil {
-		return database.CreateFileRow{}, err
+		s.logger.Error("failed to save file to storage", "key", storageKey, "error", err)
+		return database.CreateFileRow{}, fmt.Errorf("storage error")
 	}
+
+	hashBytes := hasher.Sum(nil)
+	checksum := hex.EncodeToString(hashBytes)
 
 	existingFile, _ := s.db.GetFileByChecksum(ctx, database.GetFileByChecksumParams{
 		Checksum: checksum,
@@ -46,34 +57,26 @@ func (s *FileService) UploadFile(ctx context.Context, userID uuid.UUID, file mul
 	})
 
 	if existingFile.Count > 0 {
+		_ = s.store.Delete(storageKey)
 		return database.CreateFileRow{}, utils.ErrDuplicateUpload
-	} else {
-		uniqueFilename := uuid.New().String() + filepath.Ext(fileName)
-		dirPath := filepath.Join("users", userID.String())
-		storageKey := filepath.Join(dirPath, uniqueFilename)
-
-		if err := s.store.Save(file, storageKey); err != nil {
-			s.logger.Error("failed to save file to storage", "key", storageKey, "error", err)
-			return database.CreateFileRow{}, fmt.Errorf("storage error")
-		}
-
-		params := database.CreateFileParams{
-			UserID:     userID,
-			Filename:   fileName,
-			StorageKey: storageKey,
-			MimeType:   contentType,
-			SizeBytes:  fileSize,
-			Checksum:   checksum,
-		}
-
-		fileRec, err := s.db.CreateFile(ctx, params)
-		if err != nil {
-			_ = s.store.Delete(storageKey)
-			return database.CreateFileRow{}, fmt.Errorf("database error: %w", err)
-		}
-
-		return fileRec, nil
 	}
+
+	params := database.CreateFileParams{
+		UserID:     userID,
+		Filename:   fileName,
+		StorageKey: storageKey,
+		MimeType:   contentType,
+		SizeBytes:  fileSize,
+		Checksum:   checksum,
+	}
+
+	fileRec, err := s.db.CreateFile(ctx, params)
+	if err != nil {
+		_ = s.store.Delete(storageKey)
+		return database.CreateFileRow{}, fmt.Errorf("database error: %w", err)
+	}
+
+	return fileRec, nil
 }
 
 // GetFileMetadata retrieves file info ensuring the user owns it

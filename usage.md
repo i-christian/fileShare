@@ -338,23 +338,24 @@ curl -X POST http://localhost:8080/api/v1/files/upload \
 
 ```json
 {
-  "file": {
-    "file_id": "019aa795-39fd-773d-be17-29a224ee25c9",
-    "filename": "test_doc.txt",
-    "mime_type": "application/octet-stream",
-    "size_bytes": 46,
-    "created_at": "2025-11-21T20:02:46.140894+02:00",
-    "visibility": "private",
-    "version": 0
-  },
-  "message": "File uploaded successfully"
+        "file": {
+                "file_id": "019aabc7-9fdb-7003-b850-a02760b78401",
+                "filename": "test_doc.txt",
+                "mime_type": "text/plain; charset=utf-8",
+                "size_bytes": 46,
+                "created_at": "2025-11-22T15:36:17.882173+02:00",
+                "visibility": "private",
+                "checksum": "008aa47eb4515f3974d9558b0bafe981eaaa5852950ead221fa9ffef09fe959a",
+                "version": 0
+        },
+        "message": "File uploaded successfully"
 }
 ```
 
 👉 **Save the File ID** for the next steps:
 
 ```bash
-export FILE_ID="019aa795-39fd-773d-be17-29a224ee25c9"
+export FILE_ID="019aabc7-9fdb-7003-b850-a02760b78401"
 ```
 
 -----
@@ -364,7 +365,7 @@ export FILE_ID="019aa795-39fd-773d-be17-29a224ee25c9"
 This endpoint lists only the files uploaded by the authenticated user. It supports pagination.
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/files/me?page=1&page_size=5" \
+curl -X GET "http://localhost:8080/api/v1/files/me?page=1&page_size=1" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 

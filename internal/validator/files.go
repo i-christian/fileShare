@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,43 +41,36 @@ func ValidateDeleteFile(v *Validator, version int32) {
 	v.Check(version > 0, "version", "must be greater than zero")
 }
 
-// IsValidFileType checks if the file is safe to upload.
-// It blocks executables and scripts but allows general content.
-func IsValidFileType(file io.ReadSeeker, filename string) (string, error) {
+// ValidateAndPrepareStream checks the file extension and MIME type.
+func ValidateAndPrepareStream(filename string, stream io.Reader) (fileStream io.Reader, contentType string, err error) {
 	ext := strings.ToLower(filepath.Ext(filename))
-
 	blockedExtensions := map[string]bool{
 		".exe": true, ".dll": true, ".so": true, ".bat": true, ".cmd": true,
 		".sh": true, ".php": true, ".pl": true, ".cgi": true, ".jar": true,
 		".vbs": true, ".powershell": true, ".js": true,
 	}
-
 	if blockedExtensions[ext] {
-		return "", fmt.Errorf("file extension '%s' is not allowed for security reasons", ext)
+		return nil, "", fmt.Errorf("file extension '%s' is not allowed", ext)
 	}
 
-	fileHeader := make([]byte, 512)
-	if _, err := file.Read(fileHeader); err != nil && err != io.EOF {
-		return "", fmt.Errorf("failed to read file header: %w", err)
+	header := make([]byte, 512)
+	n, err := io.ReadFull(stream, header)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, "", fmt.Errorf("failed to read file header: %w", err)
 	}
 
-	// Reset file pointer to start
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", fmt.Errorf("failed to reset file pointer: %w", err)
-	}
-
-	contentType := http.DetectContentType(fileHeader)
-
+	contentType = http.DetectContentType(header[:n])
 	blockedMimes := map[string]bool{
 		"application/x-dosexec":   true,
 		"application/x-sh":        true,
 		"application/x-httpd-php": true,
 		"application/javascript":  true,
 	}
-
 	if blockedMimes[contentType] {
-		return "", fmt.Errorf("detected blocked content type: %s", contentType)
+		return nil, "", fmt.Errorf("detected blocked content type: %s", contentType)
 	}
 
-	return contentType, nil
+	fileStream = io.MultiReader(bytes.NewReader(header[:n]), stream)
+
+	return fileStream, contentType, nil
 }

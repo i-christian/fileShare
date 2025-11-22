@@ -29,9 +29,7 @@ func NewFileHandler(maxUploadSize uint64, service *FileService, logger *slog.Log
 	}
 }
 
-const maxMemory = 32 << 20 // 32MB
-
-// Upload handles multipart/form-data file uploads
+// Upload handles streaming file uploads
 func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	user, ok := security.GetUserFromContext(r)
 	if !ok || user.IsAnonymous() {
@@ -41,57 +39,64 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, int64(h.maxUploadSize))
 
-	if err := r.ParseMultipartForm(maxMemory); err != nil {
-		utils.BadRequestResponse(w, errors.New("file too big or malformed body"))
-		return
-	}
-
-	file, header, err := r.FormFile("file")
+	reader, err := r.MultipartReader()
 	if err != nil {
-		utils.BadRequestResponse(w, errors.New("missing 'file' field"))
-		return
-	}
-	defer file.Close()
-
-	contentType, err := validator.IsValidFileType(file, header.Filename)
-	if err != nil {
-		v := validator.New()
-		v.AddError("file", err.Error())
-		utils.FailedValidationResponse(w, v.Errors)
+		utils.BadRequestResponse(w, errors.New("malformed multipart request"))
 		return
 	}
 
-	uploadPayload := &validator.FileUpload{
-		Filename:      header.Filename,
-		MaxUploadSize: int64(h.maxUploadSize),
-		UploadSize:    header.Size,
-	}
-
-	v := validator.New()
-	if validator.ValidateFileUpload(v, uploadPayload); !v.Valid() {
-		utils.FailedValidationResponse(w, v.Errors)
-		return
-	}
-
-	uploadedFile, err := h.service.UploadFile(r.Context(), user.UserID, file, header.Size, contentType, header.Filename)
-	if err != nil {
-		utils.WriteServerError(h.logger, "failed to upload file", err)
-		if errors.Is(err, utils.ErrDuplicateUpload) {
-			utils.ServerErrorResponse(w, err.Error())
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			utils.BadRequestResponse(w, errors.New("error reading multipart body"))
 			return
 		}
-		utils.ServerErrorResponse(w, "failed to process upload")
-		return
+
+		if part.FormName() == "file" {
+			defer part.Close()
+
+			filename := part.FileName()
+			if filename == "" {
+				utils.BadRequestResponse(w, errors.New("filename is missing"))
+				return
+			}
+
+			fileStream, contentType, err := validator.ValidateAndPrepareStream(filename, part)
+			if err != nil {
+				utils.FailedValidationResponse(w, map[string]string{"error": err.Error()})
+				utils.WriteServerError(h.logger, "failed to detect file type", err)
+				return
+			}
+
+			uploadedFile, err := h.service.UploadFile(
+				r.Context(),
+				user.UserID,
+				fileStream,
+				contentType,
+				filename,
+			)
+			if err != nil {
+				utils.WriteServerError(h.logger, "failed to upload file", err)
+				if errors.Is(err, utils.ErrDuplicateUpload) {
+					utils.ServerErrorResponse(w, err.Error())
+					return
+				}
+				utils.ServerErrorResponse(w, "failed to process upload")
+				return
+			}
+
+			utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+				"message": "File uploaded successfully",
+				"file":    uploadedFile,
+			}, nil)
+			return
+		}
 	}
 
-	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
-		"message": "File uploaded successfully",
-		"file":    uploadedFile,
-	}, nil)
-	if err != nil {
-		utils.WriteServerError(h.logger, "failed to write response", err)
-		utils.ServerErrorResponse(w, "server error")
-	}
+	utils.BadRequestResponse(w, errors.New("missing 'file' field in form data"))
 }
 
 // ListPublicFiles retrieves public files with pagination validation

@@ -44,7 +44,7 @@ func (q *Queries) CountUserFiles(ctx context.Context, userID uuid.UUID) (int64, 
 const createFile = `-- name: CreateFile :one
 insert into files (user_id, filename, storage_key, mime_type, size_bytes, checksum)
     values($1, $2, $3, $4, $5, $6)
-returning file_id, filename, mime_type, size_bytes, created_at, visibility, version
+returning file_id, filename, mime_type, size_bytes, created_at, visibility, checksum, version
 `
 
 type CreateFileParams struct {
@@ -63,6 +63,7 @@ type CreateFileRow struct {
 	SizeBytes  int64          `json:"size_bytes"`
 	CreatedAt  time.Time      `json:"created_at"`
 	Visibility FileVisibility `json:"visibility"`
+	Checksum   string         `json:"checksum"`
 	Version    int32          `json:"version"`
 }
 
@@ -83,6 +84,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (CreateF
 		&i.SizeBytes,
 		&i.CreatedAt,
 		&i.Visibility,
+		&i.Checksum,
 		&i.Version,
 	)
 	return i, err
