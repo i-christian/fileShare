@@ -99,6 +99,11 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	utils.BadRequestResponse(w, errors.New("missing 'file' field in form data"))
 }
 
+//SetFileVisibility toggles file visibility status
+func (h *FileHandler) SetFileVisibility(w http.ResponseWriter, r *http.Request) {
+	
+}
+
 // ListPublicFiles retrieves public files with pagination validation
 func (h *FileHandler) ListPublicFiles(w http.ResponseWriter, r *http.Request) {
 	input := validator.Filters{
@@ -133,7 +138,7 @@ func (h *FileHandler) ListPublicFiles(w http.ResponseWriter, r *http.Request) {
 // ListMyFiles retrieves user files with pagination validation
 func (h *FileHandler) ListMyFiles(w http.ResponseWriter, r *http.Request) {
 	user, ok := security.GetUserFromContext(r)
-	if !ok && !user.IsAnonymous() {
+	if !ok || user.IsAnonymous() {
 		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 		return
 	}
@@ -176,7 +181,7 @@ func (h *FileHandler) GetMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, ok := security.GetUserFromContext(r)
-	if !ok && !user.IsAnonymous() {
+	if !ok || user.IsAnonymous() {
 		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 		return
 	}
