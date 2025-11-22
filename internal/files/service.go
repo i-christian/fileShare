@@ -195,21 +195,21 @@ func (s *FileService) SetFileVisibility(ctx context.Context, fileID uuid.UUID, v
 }
 
 // UpdateFileName method updates a file name
-func (s *FileService) UpdateFileName(ctx context.Context, fileID uuid.UUID, fileName string, version int32) error {
-	err := s.db.UpdateFileName(ctx, database.UpdateFileNameParams{
+func (s *FileService) UpdateFileName(ctx context.Context, fileID uuid.UUID, fileName string, version int32) (newName string, err error) {
+	newName, err = s.db.UpdateFileName(ctx, database.UpdateFileNameParams{
 		Filename: fileName,
 		FileID:   fileID,
 		Version:  version,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return utils.ErrRecordNotFound
+			return "", utils.ErrRecordNotFound
 		}
-		return err
+		return "", err
 
 	}
 
-	return nil
+	return newName, nil
 }
 
 // DeleteFile performs a soft delete

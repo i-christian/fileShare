@@ -84,14 +84,15 @@ from files f
 select count(*) from files
     where user_id = $1 and is_deleted = false;
 
--- name: UpdateFileName :exec
+-- name: UpdateFileName :one
 update files
     set
         filename = $1,
         version = version + 1,
         updated_at = now()
 where file_id = $2
-    and version = $3;
+    and version = $3
+returning filename;
 
 -- name: SetFileVisibility :one
 update files

@@ -492,7 +492,28 @@ curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID/visible \
 Try checking the file metadata again, visibility should be public now and the version updated too.
 
 -----
-## 12 Download a File
+## 12 Change filename
+This allows the file owner to change the filename status.
+```bash
+curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID/edit \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+        "version": 2,
+        "filename": "renamed_file.txt"
+  }'
+```
+
+**Response:**
+```
+{
+        "message": "filename has been updated to renamed_file.txt"
+}
+```
+
+Try checking the file metadata again, visibility should be public now and the version updated too.
+
+-----
+## 13 Download a File
 
 This streams the binary content of the file. We use the `--output` flag to save it locally instead of printing binary data to the console.
 ***NOTE:*** Authorization header is optional here, its however used to allow file owners to download their own files even if the files are private.
@@ -518,7 +539,7 @@ cat downloaded_test.txt
 
 -----
 
-## 13 Delete a File
+## 14 Delete a File
 
 Permanently marks a file as deleted. Only the owner can do this.
 ```bash

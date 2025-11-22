@@ -278,7 +278,7 @@ func (h *FileHandler) SetFileVisibility(w http.ResponseWriter, r *http.Request) 
 
 	newVis, err := h.service.SetFileVisibility(r.Context(), fileID, input.Version, database.FileVisibility(input.Visibility))
 	if err != nil {
-		utils.WriteServerError(h.logger, "failed to change file visibility", err)
+		utils.WriteServerError(h.logger, "failed to change file visibility status", err)
 		if errors.Is(err, utils.ErrRecordNotFound) {
 			utils.NotFoundResponse(w)
 			return
@@ -289,6 +289,59 @@ func (h *FileHandler) SetFileVisibility(w http.ResponseWriter, r *http.Request) 
 	}
 
 	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": fmt.Sprintf("file visibility has been updated to %s", newVis)}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+	}
+}
+
+// UpdateFileName method updates the file name in the database
+func (h *FileHandler) UpdateFileName(w http.ResponseWriter, r *http.Request) {
+	fileID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		utils.BadRequestResponse(w, errors.New("invalid file ID parameter"))
+		return
+	}
+
+	user, ok := security.GetUserFromContext(r)
+	if !ok || user.IsAnonymous() {
+		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
+		return
+	}
+
+	var input struct {
+		Version  int32  `json:"version"`
+		FileName string `json:"filename"`
+	}
+
+	err = utils.ReadJSON(w, r, &input)
+	if err != nil {
+		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	f := validator.FileInfo{
+		Version:  input.Version,
+		Filename: input.FileName,
+	}
+	v := validator.New()
+	if validator.ValidateFileNameChange(v, f); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+		return
+	}
+
+	newName, err := h.service.UpdateFileName(r.Context(), fileID, input.FileName, input.Version)
+	if err != nil {
+		utils.WriteServerError(h.logger, "failed to change filename", err)
+		if errors.Is(err, utils.ErrRecordNotFound) {
+			utils.NotFoundResponse(w)
+			return
+		}
+
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": fmt.Sprintf("filename has been updated to %s", newName)}, nil)
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 	}

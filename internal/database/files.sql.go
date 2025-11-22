@@ -380,7 +380,7 @@ func (q *Queries) SetFileVisibility(ctx context.Context, arg SetFileVisibilityPa
 	return visibility, err
 }
 
-const updateFileName = `-- name: UpdateFileName :exec
+const updateFileName = `-- name: UpdateFileName :one
 update files
     set
         filename = $1,
@@ -388,6 +388,7 @@ update files
         updated_at = now()
 where file_id = $2
     and version = $3
+returning filename
 `
 
 type UpdateFileNameParams struct {
@@ -396,7 +397,9 @@ type UpdateFileNameParams struct {
 	Version  int32     `json:"version"`
 }
 
-func (q *Queries) UpdateFileName(ctx context.Context, arg UpdateFileNameParams) error {
-	_, err := q.exec(ctx, q.updateFileNameStmt, updateFileName, arg.Filename, arg.FileID, arg.Version)
-	return err
+func (q *Queries) UpdateFileName(ctx context.Context, arg UpdateFileNameParams) (string, error) {
+	row := q.queryRow(ctx, q.updateFileNameStmt, updateFileName, arg.Filename, arg.FileID, arg.Version)
+	var filename string
+	err := row.Scan(&filename)
+	return filename, err
 }
