@@ -34,7 +34,7 @@ func NewFileService(db *database.Queries, store filestore.FileStorage, logger *s
 }
 
 // UploadFile streams the file to storage while calculating the checksum simultaneously.
-func (s *FileService) UploadFile(ctx context.Context, userID uuid.UUID, fileStream io.Reader, contentType string, fileName string) (database.CreateFileRow, error) {
+func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, contentType string, fileName string) (database.CreateFileRow, error) {
 	uniqueFilename := uuid.New().String() + filepath.Ext(fileName)
 	dirPath := filepath.Join("users", userID.String())
 	storageKey := filepath.Join(dirPath, uniqueFilename)
@@ -50,6 +50,9 @@ func (s *FileService) UploadFile(ctx context.Context, userID uuid.UUID, fileStre
 
 	hashBytes := hasher.Sum(nil)
 	checksum := hex.EncodeToString(hashBytes)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	existingFile, _ := s.db.GetFileByChecksum(ctx, database.GetFileByChecksumParams{
 		Checksum: checksum,
@@ -175,7 +178,7 @@ func (s *FileService) ListPublicFiles(ctx context.Context, filters utils.Filters
 }
 
 // SetFileVisibility toggles file visibility status by file owner
-func (s *FileService) SetFileVisibility(ctx context.Context, userID, fileID uuid.UUID, version int32, visibility database.FileVisibility) (string, error) {
+func (s *FileService) SetFileVisibility(ctx context.Context, fileID uuid.UUID, version int32, visibility database.FileVisibility) (string, error) {
 	newVisibility, err := s.db.SetFileVisibility(ctx, database.SetFileVisibilityParams{
 		Visibility: visibility,
 		FileID:     fileID,

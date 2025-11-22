@@ -24,6 +24,12 @@ type Filters struct {
 	SortSafelist []string
 }
 
+type FileInfo struct {
+	Version    int32
+	Filename   string
+	Visibility string
+}
+
 func ValidateFileUpload(v *Validator, file *FileUpload) {
 	v.Check(file.UploadSize <= file.MaxUploadSize, "file", fmt.Sprintf("must not exceed %d", file.MaxUploadSize))
 	v.Check(file.Filename != "", "file", "must have a filename")
@@ -37,8 +43,19 @@ func ValidateFilters(v *Validator, f Filters) {
 	v.Check(f.PageSize <= 100, "page_size", "must be a maximum of 100")
 }
 
-func ValidateDeleteFile(v *Validator, version int32) {
-	v.Check(version > 0, "version", "must be greater than zero")
+func ValidateDeleteFile(v *Validator, f FileInfo) {
+	v.Check(f.Version > 0, "version", "must be greater than zero")
+}
+
+func ValidateVisibility(v *Validator, f FileInfo) {
+	v.Check(f.Version > 0, "version", "must be greater than zero")
+	v.Check(f.Visibility == "public" || f.Visibility == "private", "visibility", "must be either private or public")
+}
+
+func ValidateFileNameChange(v *Validator, f FileInfo) {
+	v.Check(f.Version > 0, "version", "must be greater than zero")
+	v.Check(len(f.Filename) >= 3, "filename", "must be atleast 3 bytes long")
+	v.Check(len(f.Filename) <= 50, "filename", "must be atmost 50 bytes long")
 }
 
 // ValidateAndPrepareStream checks the file extension and MIME type.

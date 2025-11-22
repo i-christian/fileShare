@@ -75,6 +75,7 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 				r.Get("/me", fH.ListMyFiles)
 				r.Get("/{id}", fH.GetMetadata)
 				r.Put("/{id}", fH.Delete)
+				r.Put("/{id}/visible", fH.SetFileVisibility)
 			})
 		})
 	})

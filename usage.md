@@ -436,7 +436,7 @@ curl -X GET "http://localhost:8080/api/v1/files?page=1&page_size=5"
 ```
 -----
 
-## 🔟 Get File Metadata
+## 10 Get File Metadata
 
 Retrieves details about a specific file.
   * You must be the owner and authenticated
@@ -470,8 +470,29 @@ curl -X GET http://localhost:8080/api/v1/files/$FILE_ID \
 ```
 
 -----
+## 11 Change file visibility
+This allows the file owner to change the file visibility status.
+* Visibility status is either `public` or `private`
+```bash
+curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID/visible \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+        "version": 1,
+        "visibility": "public"
+  }'
+```
 
-## 1️⃣1️⃣ Download a File
+**Response:**
+```
+{
+    "message": "file visibility has been updated to public"
+}
+```
+
+Try checking the file metadata again, visibility should be public now and the version updated too.
+
+-----
+## 12 Download a File
 
 This streams the binary content of the file. We use the `--output` flag to save it locally instead of printing binary data to the console.
 ***NOTE:*** Authorization header is optional here, its however used to allow file owners to download their own files even if the files are private.
@@ -497,7 +518,7 @@ cat downloaded_test.txt
 
 -----
 
-## 1️⃣2️⃣ Delete a File
+## 13 Delete a File
 
 Permanently marks a file as deleted. Only the owner can do this.
 ```bash
@@ -505,7 +526,7 @@ curl -X PUT http://localhost:8080/api/v1/files/$FILE_ID \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "version": 0
+    "version": 1
   }'
 
 ```

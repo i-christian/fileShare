@@ -72,7 +72,6 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			}
 
 			uploadedFile, err := h.service.UploadFile(
-				r.Context(),
 				user.UserID,
 				fileStream,
 				contentType,
@@ -97,11 +96,6 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.BadRequestResponse(w, errors.New("missing 'file' field in form data"))
-}
-
-//SetFileVisibility toggles file visibility status
-func (h *FileHandler) SetFileVisibility(w http.ResponseWriter, r *http.Request) {
-	
 }
 
 // ListPublicFiles retrieves public files with pagination validation
@@ -247,6 +241,59 @@ func (h *FileHandler) Download(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SetFileVisibility toggles file visibility status
+func (h *FileHandler) SetFileVisibility(w http.ResponseWriter, r *http.Request) {
+	fileID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		utils.BadRequestResponse(w, errors.New("invalid file ID parameter"))
+		return
+	}
+
+	user, ok := security.GetUserFromContext(r)
+	if !ok || user.IsAnonymous() {
+		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
+		return
+	}
+
+	var input struct {
+		Version    int32  `json:"version"`
+		Visibility string `json:"visibility"`
+	}
+
+	err = utils.ReadJSON(w, r, &input)
+	if err != nil {
+		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	f := validator.FileInfo{
+		Version:    input.Version,
+		Visibility: input.Visibility,
+	}
+	v := validator.New()
+	if validator.ValidateVisibility(v, f); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+		return
+	}
+
+	newVis, err := h.service.SetFileVisibility(r.Context(), fileID, input.Version, database.FileVisibility(input.Visibility))
+	if err != nil {
+		utils.WriteServerError(h.logger, "failed to change file visibility", err)
+		if errors.Is(err, utils.ErrRecordNotFound) {
+			utils.NotFoundResponse(w)
+			return
+		}
+
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": fmt.Sprintf("file visibility has been updated to %s", newVis)}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+	}
+}
+
 // Delete handles soft deletion
 func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	fileID, err := uuid.Parse(r.PathValue("id"))
@@ -256,7 +303,7 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, ok := security.GetUserFromContext(r)
-	if !ok && !user.IsAnonymous() {
+	if !ok || user.IsAnonymous() {
 		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 		return
 	}
@@ -272,7 +319,10 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
-	if validator.ValidateDeleteFile(v, input.Version); !v.Valid() {
+	f := validator.FileInfo{
+		Version: input.Version,
+	}
+	if validator.ValidateDeleteFile(v, f); !v.Valid() {
 		utils.FailedValidationResponse(w, v.Errors)
 		return
 	}
@@ -289,6 +339,6 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "file deleted successfully"}, nil)
 	if err != nil {
-		utils.ServerErrorResponse(w, "server error")
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 	}
 }
