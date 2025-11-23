@@ -59,7 +59,7 @@ flowchart LR
 | **Router**           | [Chi](https://github.com/go-chi/chi)                  | Lightweight idiomatic HTTP router.   |
 | **Auth**             | [JWT (golang-jwt)](https://github.com/golang-jwt/jwt) | Stateless user authentication.       |
 | **Database**         | PostgreSQL                                            | Primary relational data store.       |
-| **Cache/Queue**      | Redis                                                 | In-memory cache and job queue.       |
+| **Task Queue**       | [Asynq](https://github.com/hibiken/asynq.git)         | A task queue(redis backed).          |
 | **Containerization** | Docker & Docker Compose                               | Consistent dev/prod environments.    |
 
 ---

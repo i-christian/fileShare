@@ -21,7 +21,7 @@ type RoutesConfig struct {
 	LimiterEnabled bool
 }
 
-func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.ApiKeyService, uH *user.UserHandler, pH *public.PublicHandler, fH *files.FileHandler) http.Handler {
+func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *auth.AuthService, apiKeyService *auth.APIKeyService, uH *user.UserHandler, pH *public.PublicHandler, fH *files.FileHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middlewares

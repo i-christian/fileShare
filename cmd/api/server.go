@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/i-christian/fileShare/internal/auth"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
@@ -23,6 +24,7 @@ import (
 	"github.com/i-christian/fileShare/internal/router"
 	"github.com/i-christian/fileShare/internal/user"
 	"github.com/i-christian/fileShare/internal/utils"
+	"github.com/i-christian/fileShare/internal/worker"
 )
 
 func (app *application) serve(dbConn *sql.DB) error {
@@ -39,17 +41,21 @@ func (app *application) serve(dbConn *sql.DB) error {
 
 	fileStorage := utils.SetUpFileStorage(app.logger)
 	psqlService := database.New(dbConn)
+	redisOpt := asynq.RedisClientOpt{
+		Addr: utils.GetEnvOrFile("REDIS_ADDR"),
+	}
+	taskDistributor := worker.NewRedisTaskDistributor(redisOpt)
 
 	publicHandler := public.NewPublicHandler(app.config.env, app.config.version, app.logger)
 
 	authService := auth.NewAuthService(psqlService, app.config.jwtSecret, app.config.jwtTTL, app.logger)
-	apiKeyService := auth.NewApiKeyService(8, app.config.apiKeyPrefix, psqlService, app.logger, &app.wg)
-	authHandler := auth.NewAuthHandler(authService, apiKeyService, app.config.refreshTokenTTL, app.logger, mailService, &app.wg)
+	apiKeyService := auth.NewAPIKeyService(8, app.config.apiKeyPrefix, psqlService, app.logger, &app.wg)
+	authHandler := auth.NewAuthHandler(authService, apiKeyService, app.config.refreshTokenTTL, app.logger, taskDistributor)
 
 	userService := user.NewUserService(psqlService, app.logger)
 	userHandler := user.NewUserHandler(userService)
 
-	fileService := files.NewFileService(psqlService, fileStorage, app.logger, &app.wg)
+	fileService := files.NewFileService(psqlService, fileStorage, app.logger, taskDistributor)
 	fileHandler := files.NewFileHandler(app.config.maxUploadSize, fileService, app.logger)
 
 	routeConfig := &router.RoutesConfig{
@@ -77,6 +83,14 @@ func (app *application) serve(dbConn *sql.DB) error {
 		app.logger.Info(fmt.Sprintf("server starting on http://%s:%d", app.config.domain, app.config.port), "env", app.config.env)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			shutdownError <- err
+		}
+	}()
+
+	taskProcessor := NewRedisTaskProcessor(redisOpt, fileService, app.logger, mailService)
+	go func() {
+		app.logger.Info("starting background worker")
+		if err := taskProcessor.Start(); err != nil {
+			app.logger.Error("failed to start task processor", "error", err)
 		}
 	}()
 

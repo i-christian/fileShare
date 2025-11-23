@@ -16,7 +16,7 @@ import (
 	"github.com/i-christian/fileShare/internal/worker"
 )
 
-type ApiKeyService struct {
+type APIKeyService struct {
 	queries         *database.Queries
 	logger          *slog.Logger
 	wg              *sync.WaitGroup
@@ -24,8 +24,8 @@ type ApiKeyService struct {
 	apiKeyPrefixLen uint8
 }
 
-func NewApiKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries, logger *slog.Logger, wg *sync.WaitGroup) *ApiKeyService {
-	return &ApiKeyService{
+func NewAPIKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *database.Queries, logger *slog.Logger, wg *sync.WaitGroup) *APIKeyService {
+	return &APIKeyService{
 		apiKeyPrefixLen: apiKeyPrefixLen,
 		apiKeyPrefix:    apiKeyPrefix,
 		queries:         queries,
@@ -36,7 +36,7 @@ func NewApiKeyService(apiKeyPrefixLen uint8, apiKeyPrefix string, queries *datab
 
 // GenerateAPIKey creates a new API key for a user, stores its hash,
 // and returns the full, unhashed key one time.
-func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, name string, expires time.Time, scope []database.ApiScope) (string, error) {
+func (s *APIKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, name string, expires time.Time, scope []database.ApiScope) (string, error) {
 	var prefix string
 	var err error
 	for i := 0; i < 5; i++ {
@@ -81,7 +81,7 @@ func (s *ApiKeyService) GenerateAPIKey(ctx context.Context, userID uuid.UUID, na
 }
 
 // ValidateAPIKey checks a full API key string
-func (s *ApiKeyService) ValidateAPIKey(ctx context.Context, keyString string) (*security.ContextUser, error) {
+func (s *APIKeyService) ValidateAPIKey(ctx context.Context, keyString string) (*security.ContextUser, error) {
 	parts := strings.SplitN(keyString, "_", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid api key format")

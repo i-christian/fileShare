@@ -76,6 +76,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 				fileStream,
 				contentType,
 				filename,
+				int64(h.maxUploadSize),
 			)
 			if err != nil {
 				utils.WriteServerError(h.logger, "failed to upload file", err)

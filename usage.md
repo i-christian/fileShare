@@ -15,8 +15,8 @@ Below is a full working example showing how to test user signup, login, and toke
 curl -v http://localhost:8080/api/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "alice@example.com",
-    "first_name": "Alice",
+    "email": "alice2@example.com",
+    "first_name": "Alice2",
     "last_name": "Wonderland",
     "password": "supersecret123"
   }'
@@ -321,7 +321,6 @@ Ensure you have a valid `$ACCESS_TOKEN` exported from the authentication steps a
 -----
 
 ## 7️⃣ Upload a File
-**NOTE:** image upload generate thumbnails automatically.
 First, create a dummy file to test with:
 
 ```bash
@@ -360,22 +359,21 @@ curl -X POST http://localhost:8080/api/v1/files/upload \
 export FILE_ID="019aabc7-9fdb-7003-b850-a02760b78401"
 ```
 
------
-
 #### Image files and thumbnails
+**NOTE:** image upload generate thumbnails automatically.
 ```bash
 curl -X POST http://localhost:8080/api/v1/files/upload \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -F "file=@./image.jpg"
 ```
-
+-----
 
 ## 8️⃣ List "My Files" (Private & Public)
 
 This endpoint lists only the files uploaded by the authenticated user. It supports pagination.
 
 ```bash
-curl -X GET "http://localhost:8080/api/v1/files/me?page=1&page_size=1" \
+curl -X GET "http://localhost:8080/api/v1/files/me?page=1&page_size=5" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 

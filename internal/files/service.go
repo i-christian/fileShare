@@ -13,11 +13,11 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/filestore"
 	"github.com/i-christian/fileShare/internal/utils"
@@ -25,23 +25,23 @@ import (
 )
 
 type FileService struct {
-	db     *database.Queries
-	store  filestore.FileStorage
-	logger *slog.Logger
-	wg     *sync.WaitGroup
+	db              *database.Queries
+	store           filestore.FileStorage
+	logger          *slog.Logger
+	taskDistributor worker.Distributor
 }
 
-func NewFileService(db *database.Queries, store filestore.FileStorage, logger *slog.Logger, wg *sync.WaitGroup) *FileService {
+func NewFileService(db *database.Queries, store filestore.FileStorage, logger *slog.Logger, taskDist worker.Distributor) *FileService {
 	return &FileService{
-		db:     db,
-		store:  store,
-		logger: logger,
-		wg:     wg,
+		db:              db,
+		store:           store,
+		logger:          logger,
+		taskDistributor: taskDist,
 	}
 }
 
 // UploadFile streams the file to storage while calculating the checksum simultaneously.
-func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, contentType string, fileName string) (database.CreateFileRow, error) {
+func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, contentType string, fileName string, maxUploadSize int64) (database.CreateFileRow, error) {
 	uniqueFilename := uuid.New().String() + filepath.Ext(fileName)
 	dirPath := filepath.Join("users", userID.String())
 	storageKey := filepath.Join(dirPath, uniqueFilename)
@@ -52,7 +52,12 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 	fileSize, err := s.store.Save(tee, storageKey)
 	if err != nil {
 		s.logger.Error("failed to save file to storage", "key", storageKey, "error", err)
+		_ = s.store.Delete(storageKey)
 		return database.CreateFileRow{}, fmt.Errorf("storage error")
+	}
+	if fileSize > maxUploadSize {
+		_ = s.store.Delete(storageKey)
+		return database.CreateFileRow{}, fmt.Errorf("file size is too large")
 	}
 
 	hashBytes := hasher.Sum(nil)
@@ -87,29 +92,37 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 	}
 
 	if strings.HasPrefix(contentType, "image/") {
-		worker.BackgroundTask(s.wg, s.logger, func(l *slog.Logger) {
-			s.generateThumbnail(fileRec.FileID, storageKey)
-		})
+		taskPayload := &worker.ThumbnailPayload{
+			FileID:     fileRec.FileID,
+			StorageKey: storageKey,
+		}
+
+		opts := []asynq.Option{
+			asynq.MaxRetry(3),
+			asynq.Queue("default"),
+			asynq.Timeout(20 * time.Second),
+		}
+
+		err := s.taskDistributor.DistributeGenerateThumbnail(context.Background(), taskPayload, opts...)
+		if err != nil {
+			utils.WriteServerError(s.logger, "failed to enqueue thumbnail task", err)
+		}
 	}
 
 	return fileRec, nil
 }
 
-// generateThumbnail creates a thumbnail for an image file
-func (s *FileService) generateThumbnail(fileID uuid.UUID, storageKey string) {
-	s.logger.Info("starting thumbnail generation", "file_id", fileID)
-
+// GenerateThumbnail creates a thumbnail for an image file
+func (s *FileService) GenerateThumbnail(fileID uuid.UUID, storageKey string) error {
 	originalFile, err := s.store.Get(storageKey)
 	if err != nil {
-		s.logger.Error("failed to retrieve file for thumbnail", "error", err)
-		return
+		return err
 	}
 	defer originalFile.Close()
 
 	img, err := imaging.Decode(originalFile)
 	if err != nil {
-		s.logger.Error("failed to decode image", "error", err)
-		return
+		return err
 	}
 
 	thumbnail := imaging.Resize(img, 300, 0, imaging.Lanczos)
@@ -117,15 +130,13 @@ func (s *FileService) generateThumbnail(fileID uuid.UUID, storageKey string) {
 	buf := new(bytes.Buffer)
 	err = imaging.Encode(buf, thumbnail, imaging.JPEG)
 	if err != nil {
-		s.logger.Error("failed to encode thumbnail", "error", err)
-		return
+		return err
 	}
 
 	thumbKey := "thumbnails/" + uuid.New().String() + ".jpg"
 	_, err = s.store.Save(buf, thumbKey)
 	if err != nil {
-		s.logger.Error("failed to save thumbnail to storage", "error", err)
-		return
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -137,11 +148,10 @@ func (s *FileService) generateThumbnail(fileID uuid.UUID, storageKey string) {
 	})
 	if err != nil {
 		_ = s.store.Delete(thumbKey)
-		s.logger.Error("failed to update file record with thumbnail", "error", err)
-		return
+		return err
 	}
 
-	s.logger.Info("thumbnail generated successfully", "file_id", fileID)
+	return nil
 }
 
 // GetFileMetadata retrieves file info ensuring the user owns it

@@ -1,14 +1,14 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/i-christian/fileShare/internal/database"
-	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
 	"github.com/i-christian/fileShare/internal/validator"
@@ -17,21 +17,19 @@ import (
 
 type AuthHandler struct {
 	authService     *AuthService
-	apiKeyService   *ApiKeyService
+	apiKeyService   *APIKeyService
 	logger          *slog.Logger
-	mailer          *mailer.Mailer
-	wg              *sync.WaitGroup
+	distributor     worker.Distributor
 	refreshTokenTTL time.Duration
 }
 
-func NewAuthHandler(authService *AuthService, apiKeyService *ApiKeyService, refreshTokenTTL time.Duration, logger *slog.Logger, mailer *mailer.Mailer, wg *sync.WaitGroup) *AuthHandler {
+func NewAuthHandler(authService *AuthService, apiKeyService *APIKeyService, refreshTokenTTL time.Duration, logger *slog.Logger, distributor worker.Distributor) *AuthHandler {
 	return &AuthHandler{
 		authService:     authService,
 		apiKeyService:   apiKeyService,
 		refreshTokenTTL: refreshTokenTTL,
 		logger:          logger,
-		mailer:          mailer,
-		wg:              wg,
+		distributor:     distributor,
 	}
 }
 
@@ -68,37 +66,29 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	worker.BackgroundTask(h.wg, h.logger, func(l *slog.Logger) {
-		l.Info("starting welcome email task", "recipient", user.UserID)
+	data := map[string]any{
+		"AppName":         utils.GetEnvOrFile("PROJECT_NAME"),
+		"FirstName":       user.FirstName,
+		"LastName":        user.LastName,
+		"Email":           user.Email,
+		"ActivationToken": user.ActivationToken,
+		"Year":            time.Now().Year(),
+	}
+	payload := &worker.EmailPayload{
+		Recipient:    user.Email,
+		UserID:       user.UserID,
+		TemplateFile: "user_welcome.tmpl",
+		Data:         data,
+	}
+	opts := []asynq.Option{
+		asynq.Queue("critical"),
+		asynq.MaxRetry(5),
+	}
 
-		start := time.Now()
-		defer func() {
-			l.Info("welcome email task completed",
-				"recipient", user.UserID,
-				"duration", time.Since(start).String(),
-			)
-		}()
-
-		appName := utils.GetEnvOrFile("PROJECT_NAME")
-		data := map[string]any{
-			"AppName":         appName,
-			"FirstName":       user.FirstName,
-			"LastName":        user.LastName,
-			"Email":           user.Email,
-			"ActivationToken": user.ActivationToken,
-			"Year":            time.Now().Year(),
-		}
-
-		err = h.mailer.Send(user.Email, "user_welcome.tmpl", data)
-		if err != nil {
-			utils.WriteServerError(l, "failed to send an email", err)
-			return
-		}
-
-		l.Info(
-			"successfully sent welcome email", "recipient", user.UserID,
-		)
-	})
+	err = h.distributor.DistributeSendEmail(context.Background(), payload, opts...)
+	if err != nil {
+		utils.WriteServerError(h.logger, "failed to queue welcome email", err)
+	}
 
 	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user}, nil)
 	if err != nil {
