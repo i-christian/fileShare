@@ -77,20 +77,19 @@ func (app *application) serve(dbConn *sql.DB) error {
 		ErrorLog:     slog.NewLogLogger(app.logger.Handler(), slog.LevelError),
 	}
 
-	shutdownError := make(chan error)
-
-	go func() {
-		app.logger.Info(fmt.Sprintf("server starting on http://%s:%d", app.config.domain, app.config.port), "env", app.config.env)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			shutdownError <- err
-		}
-	}()
-
 	taskProcessor := NewRedisTaskProcessor(redisOpt, fileService, app.logger, mailService)
 	go func() {
 		app.logger.Info("starting background worker")
 		if err := taskProcessor.Start(); err != nil {
 			app.logger.Error("failed to start task processor", "error", err)
+		}
+	}()
+
+	shutdownError := make(chan error)
+	go func() {
+		app.logger.Info(fmt.Sprintf("server starting on http://%s:%d", app.config.domain, app.config.port), "env", app.config.env)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			shutdownError <- err
 		}
 	}()
 
@@ -101,7 +100,7 @@ func (app *application) serve(dbConn *sql.DB) error {
 	case err := <-shutdownError:
 		return err
 	case <-quit:
-		app.logger.Info("shutting down server")
+		app.logger.Info("Shutting down server")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -111,10 +110,11 @@ func (app *application) serve(dbConn *sql.DB) error {
 		return fmt.Errorf("graceful shutdown failed: %w", err)
 	}
 
-	app.logger.Info("completing background tasks...")
+	app.logger.Info("Completing background tasks...")
+	taskProcessor.Shutdown()
 	app.wg.Wait()
 
-	app.logger.Info("graceful shutdown complete")
+	app.logger.Info("Graceful shutdown complete")
 
 	return nil
 }
