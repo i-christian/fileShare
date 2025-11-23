@@ -15,8 +15,8 @@ Below is a full working example showing how to test user signup, login, and toke
 curl -v http://localhost:8080/api/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "alice2@example.com",
-    "first_name": "Alice2",
+    "email": "alice@example.com",
+    "first_name": "Alice",
     "last_name": "Wonderland",
     "password": "supersecret123"
   }'
