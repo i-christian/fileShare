@@ -79,7 +79,6 @@ func (app *application) serve(dbConn *sql.DB) error {
 
 	taskProcessor := NewRedisTaskProcessor(redisOpt, fileService, app.logger, mailService)
 	go func() {
-		app.logger.Info("starting background worker")
 		if err := taskProcessor.Start(); err != nil {
 			app.logger.Error("failed to start task processor", "error", err)
 		}

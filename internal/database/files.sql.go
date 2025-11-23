@@ -95,6 +95,7 @@ update files
     set
         is_deleted = true,
         deleted_at = $1,
+        updated_at = now(),
         version = version + 1
 where file_id = $2
     and version = $3
@@ -361,6 +362,7 @@ const setFileVisibility = `-- name: SetFileVisibility :one
 update files
     set
         visibility = $1,
+        updated_at = now(),
         version = version + 1
 where file_id = $2
     and version = $3
@@ -407,7 +409,8 @@ func (q *Queries) UpdateFileName(ctx context.Context, arg UpdateFileNameParams) 
 const updateFileThumbnail = `-- name: UpdateFileThumbnail :exec
 update files
     set thumbnail_key = $1,
-        updated_at = now()
+        updated_at = now(),
+        version = version + 1
 where file_id = $2
 `
 
