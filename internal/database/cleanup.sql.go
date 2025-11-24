@@ -13,38 +13,12 @@ import (
 	"github.com/lib/pq"
 )
 
-const deleteExpiredAPIKeys = `-- name: DeleteExpiredAPIKeys :exec
-delete from api_keys where expires_at < now()
-`
-
-func (q *Queries) DeleteExpiredAPIKeys(ctx context.Context) error {
-	_, err := q.exec(ctx, q.deleteExpiredAPIKeysStmt, deleteExpiredAPIKeys)
-	return err
-}
-
-const deleteExpiredActionTokens = `-- name: DeleteExpiredActionTokens :exec
-delete from action_tokens where expires_at < now()
-`
-
-func (q *Queries) DeleteExpiredActionTokens(ctx context.Context) error {
-	_, err := q.exec(ctx, q.deleteExpiredActionTokensStmt, deleteExpiredActionTokens)
-	return err
-}
-
-const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :exec
-delete from refresh_tokens where expires_at < now()
-`
-
-func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
-	_, err := q.exec(ctx, q.deleteExpiredRefreshTokensStmt, deleteExpiredRefreshTokens)
-	return err
-}
-
 const getExpiredDeletedFiles = `-- name: GetExpiredDeletedFiles :many
 select file_id, storage_key, thumbnail_key
 from files
     where is_deleted = true 
-        and deleted_at < $1
+        and deleted_at < now()
+    limit $1
 `
 
 type GetExpiredDeletedFilesRow struct {
@@ -53,9 +27,9 @@ type GetExpiredDeletedFilesRow struct {
 	ThumbnailKey sql.NullString `json:"thumbnail_key"`
 }
 
-// Fetch files that have been soft-deleted for more than specific duration (e.g., 30 days)
-func (q *Queries) GetExpiredDeletedFiles(ctx context.Context, deletedAt sql.NullTime) ([]GetExpiredDeletedFilesRow, error) {
-	rows, err := q.query(ctx, q.getExpiredDeletedFilesStmt, getExpiredDeletedFiles, deletedAt)
+// Fetch files that have been soft-deleted for more than specific duration (e.g., 7 days)
+func (q *Queries) GetExpiredDeletedFiles(ctx context.Context, limit int32) ([]GetExpiredDeletedFilesRow, error) {
+	rows, err := q.query(ctx, q.getExpiredDeletedFilesStmt, getExpiredDeletedFiles, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +56,7 @@ delete from files where file_id = any($1::uuid[])
 `
 
 // Permanently remove file records
-func (q *Queries) HardDeleteFiles(ctx context.Context, dollar_1 []uuid.UUID) error {
-	_, err := q.exec(ctx, q.hardDeleteFilesStmt, hardDeleteFiles, pq.Array(dollar_1))
+func (q *Queries) HardDeleteFiles(ctx context.Context, fileIds []uuid.UUID) error {
+	_, err := q.exec(ctx, q.hardDeleteFilesStmt, hardDeleteFiles, pq.Array(fileIds))
 	return err
 }

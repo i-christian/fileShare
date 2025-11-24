@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
 	"github.com/hibiken/asynq"
 	"github.com/i-christian/fileShare/internal/files"
+	"github.com/i-christian/fileShare/internal/jobs"
 	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/worker"
 )
@@ -22,10 +24,11 @@ type RedisTaskProcessor struct {
 	server      *asynq.Server
 	fileService *files.FileService
 	mailer      *mailer.Mailer
+	conn        *sql.DB
 	logger      *slog.Logger
 }
 
-func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, fileService *files.FileService, logger *slog.Logger, mailer *mailer.Mailer) *RedisTaskProcessor {
+func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, fileService *files.FileService, conn *sql.DB, logger *slog.Logger, mailer *mailer.Mailer) *RedisTaskProcessor {
 	server := asynq.NewServer(
 		redisOpt,
 		asynq.Config{
@@ -50,6 +53,7 @@ func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, fileService *files.Fil
 		fileService: fileService,
 		logger:      logger,
 		mailer:      mailer,
+		conn:        conn,
 	}
 }
 
@@ -58,6 +62,7 @@ func (p *RedisTaskProcessor) Start() error {
 
 	mux.HandleFunc(worker.TaskGenerateThumbnail, p.ProcessTaskGenerateThumbnail)
 	mux.HandleFunc(worker.TaskSendEmail, p.ProcessTaskSendEmail)
+	mux.HandleFunc(worker.TaskCleanupSystem, p.ProcessTaskCleanupSystem)
 
 	return p.server.Run(mux)
 }
@@ -96,5 +101,23 @@ func (p *RedisTaskProcessor) ProcessTaskSendEmail(ctx context.Context, task *asy
 	}
 
 	p.logger.Info("processed email task successfully", "recipient", payload.UserID)
+	return nil
+}
+
+func (p *RedisTaskProcessor) ProcessTaskCleanupSystem(ctx context.Context, task *asynq.Task) error {
+	p.logger.Info("starting system cleanup task")
+
+	var limit int32 = 100
+	deletedFileCount, err := p.fileService.CleanupExpiredSoftDeleted(ctx, limit)
+	if err != nil {
+		p.logger.Error("failed to cleanup files", "error", err)
+	}
+
+	expiredCounts, err := jobs.CleanUpExpired(ctx, p.conn)
+	if err != nil {
+		p.logger.Error("failed to cleanup tokens", "error", err)
+	}
+
+	p.logger.Info("system cleanup task finished", "apiKeys", expiredCounts.APIKeysDeleted, "actionTokens", expiredCounts.ActionTokensDeleted, "refreshTokens", expiredCounts.RefreshTokensDeleted, "deleted files", deletedFileCount)
 	return nil
 }

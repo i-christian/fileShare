@@ -99,8 +99,6 @@ func CleanUpFiles(fileStore filestore.FileStorage, logger *slog.Logger, paths []
 		if err := fileStore.Delete(deletePath); err != nil {
 			logger.Error("failed to delete disk file", "path", deletePath, "error", err)
 			continue
-		} else {
-			logger.Info("file path deleted", "path", deletePath)
 		}
 	}
 }

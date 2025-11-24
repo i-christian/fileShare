@@ -285,7 +285,7 @@ func (s *FileService) UpdateFileName(ctx context.Context, fileID uuid.UUID, file
 
 // DeleteFile performs a soft delete
 func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID, version int32) error {
-	delTime := sql.NullTime{Time: time.Now().Add(30 * 24 * time.Hour), Valid: true}
+	delTime := sql.NullTime{Time: time.Now().Add(7 * 24 * time.Hour), Valid: true}
 
 	err := s.db.DeleteFile(ctx, database.DeleteFileParams{
 		DeletedAt: delTime,
@@ -301,4 +301,35 @@ func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID, userID u
 	}
 
 	return nil
+}
+
+// CleanupExpiredSoftDeleted handles hard deletion of files by a cron job
+func (s *FileService) CleanupExpiredSoftDeleted(ctx context.Context, limit int32) (deletedFiles int, err error) {
+	files, err := s.db.GetExpiredDeletedFiles(ctx, limit)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch expired files: %w", err)
+	}
+
+	if len(files) == 0 {
+		return 0, nil
+	}
+
+	var fileIDs []uuid.UUID
+	var storagePaths []string
+
+	for _, f := range files {
+		fileIDs = append(fileIDs, f.FileID)
+		storagePaths = append(storagePaths, f.StorageKey)
+		if f.ThumbnailKey.Valid {
+			storagePaths = append(storagePaths, f.ThumbnailKey.String)
+		}
+	}
+
+	utils.CleanUpFiles(s.store, s.logger, storagePaths)
+
+	if err := s.db.HardDeleteFiles(ctx, fileIDs); err != nil {
+		return 0, fmt.Errorf("failed to hard delete file records: %w", err)
+	}
+
+	return len(files), nil
 }

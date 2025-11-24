@@ -14,6 +14,7 @@ import (
 const (
 	TaskGenerateThumbnail = "task:image:generate_thumbnail"
 	TaskSendEmail         = "task:email:send"
+	TaskCleanupSystem     = "task:system:cleaup_expired"
 )
 
 type ThumbnailPayload struct {
@@ -27,6 +28,8 @@ type EmailPayload struct {
 	Recipient    string         `json:"recipient"`
 	Data         map[string]any `json:"data"`
 }
+
+type CleanupPayload struct{}
 
 // Distributor defines how to send tasks to the queue
 type Distributor interface {

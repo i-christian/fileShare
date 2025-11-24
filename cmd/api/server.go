@@ -77,7 +77,14 @@ func (app *application) serve(dbConn *sql.DB) error {
 		ErrorLog:     slog.NewLogLogger(app.logger.Handler(), slog.LevelError),
 	}
 
-	taskProcessor := NewRedisTaskProcessor(redisOpt, fileService, app.logger, mailService)
+	taskScheduler := NewRedisTaskScheduler(redisOpt, app.logger)
+	go func() {
+		if err := taskScheduler.Start(); err != nil {
+			app.logger.Error("failed to start task scheduler", "error", err)
+		}
+	}()
+
+	taskProcessor := NewRedisTaskProcessor(redisOpt, fileService, dbConn, app.logger, mailService)
 	go func() {
 		if err := taskProcessor.Start(); err != nil {
 			app.logger.Error("failed to start task processor", "error", err)
@@ -110,6 +117,7 @@ func (app *application) serve(dbConn *sql.DB) error {
 	}
 
 	app.logger.Info("Completing background tasks...")
+	taskScheduler.Shutdown()
 	taskProcessor.Shutdown()
 	app.wg.Wait()
 
