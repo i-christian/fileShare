@@ -60,6 +60,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteApiKeyStmt, err = db.PrepareContext(ctx, deleteApiKey); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteApiKey: %w", err)
 	}
+	if q.deleteExpiredAPIKeysStmt, err = db.PrepareContext(ctx, deleteExpiredAPIKeys); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredAPIKeys: %w", err)
+	}
+	if q.deleteExpiredActionTokensStmt, err = db.PrepareContext(ctx, deleteExpiredActionTokens); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredActionTokens: %w", err)
+	}
+	if q.deleteExpiredRefreshTokensStmt, err = db.PrepareContext(ctx, deleteExpiredRefreshTokens); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredRefreshTokens: %w", err)
+	}
 	if q.deleteFileStmt, err = db.PrepareContext(ctx, deleteFile); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteFile: %w", err)
 	}
@@ -71,6 +80,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getApiKeyByPrefixStmt, err = db.PrepareContext(ctx, getApiKeyByPrefix); err != nil {
 		return nil, fmt.Errorf("error preparing query GetApiKeyByPrefix: %w", err)
+	}
+	if q.getExpiredDeletedFilesStmt, err = db.PrepareContext(ctx, getExpiredDeletedFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query GetExpiredDeletedFiles: %w", err)
 	}
 	if q.getFileByChecksumStmt, err = db.PrepareContext(ctx, getFileByChecksum); err != nil {
 		return nil, fmt.Errorf("error preparing query GetFileByChecksum: %w", err)
@@ -89,6 +101,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getUserByIDStmt, err = db.PrepareContext(ctx, getUserByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByID: %w", err)
+	}
+	if q.hardDeleteFilesStmt, err = db.PrepareContext(ctx, hardDeleteFiles); err != nil {
+		return nil, fmt.Errorf("error preparing query HardDeleteFiles: %w", err)
 	}
 	if q.listApiKeysByUserStmt, err = db.PrepareContext(ctx, listApiKeysByUser); err != nil {
 		return nil, fmt.Errorf("error preparing query ListApiKeysByUser: %w", err)
@@ -182,6 +197,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteApiKeyStmt: %w", cerr)
 		}
 	}
+	if q.deleteExpiredAPIKeysStmt != nil {
+		if cerr := q.deleteExpiredAPIKeysStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredAPIKeysStmt: %w", cerr)
+		}
+	}
+	if q.deleteExpiredActionTokensStmt != nil {
+		if cerr := q.deleteExpiredActionTokensStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredActionTokensStmt: %w", cerr)
+		}
+	}
+	if q.deleteExpiredRefreshTokensStmt != nil {
+		if cerr := q.deleteExpiredRefreshTokensStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredRefreshTokensStmt: %w", cerr)
+		}
+	}
 	if q.deleteFileStmt != nil {
 		if cerr := q.deleteFileStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteFileStmt: %w", cerr)
@@ -200,6 +230,11 @@ func (q *Queries) Close() error {
 	if q.getApiKeyByPrefixStmt != nil {
 		if cerr := q.getApiKeyByPrefixStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getApiKeyByPrefixStmt: %w", cerr)
+		}
+	}
+	if q.getExpiredDeletedFilesStmt != nil {
+		if cerr := q.getExpiredDeletedFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getExpiredDeletedFilesStmt: %w", cerr)
 		}
 	}
 	if q.getFileByChecksumStmt != nil {
@@ -230,6 +265,11 @@ func (q *Queries) Close() error {
 	if q.getUserByIDStmt != nil {
 		if cerr := q.getUserByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getUserByIDStmt: %w", cerr)
+		}
+	}
+	if q.hardDeleteFilesStmt != nil {
+		if cerr := q.hardDeleteFilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing hardDeleteFilesStmt: %w", cerr)
 		}
 	}
 	if q.listApiKeysByUserStmt != nil {
@@ -314,75 +354,85 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                        DBTX
-	tx                        *sql.Tx
-	activateUserEmailStmt     *sql.Stmt
-	checkIfAPIKeyExistsStmt   *sql.Stmt
-	checkIfEmailExistsStmt    *sql.Stmt
-	countPublicFilesStmt      *sql.Stmt
-	countUserFilesStmt        *sql.Stmt
-	createActionTokenStmt     *sql.Stmt
-	createApiKeyStmt          *sql.Stmt
-	createFileStmt            *sql.Stmt
-	createRefreshTokenStmt    *sql.Stmt
-	createUserStmt            *sql.Stmt
-	deleteActionTokenStmt     *sql.Stmt
-	deleteApiKeyStmt          *sql.Stmt
-	deleteFileStmt            *sql.Stmt
-	deleteRefreshTokenStmt    *sql.Stmt
-	getActionTokenForUserStmt *sql.Stmt
-	getApiKeyByPrefixStmt     *sql.Stmt
-	getFileByChecksumStmt     *sql.Stmt
-	getFileInfoStmt           *sql.Stmt
-	getFileOwnerStmt          *sql.Stmt
-	getRefreshTokenStmt       *sql.Stmt
-	getUserByEmailStmt        *sql.Stmt
-	getUserByIDStmt           *sql.Stmt
-	listApiKeysByUserStmt     *sql.Stmt
-	listPublicFilesStmt       *sql.Stmt
-	listUserFilesStmt         *sql.Stmt
-	revokeApiKeyStmt          *sql.Stmt
-	revokeRefreshTokenStmt    *sql.Stmt
-	setFileVisibilityStmt     *sql.Stmt
-	updateApiKeyLastUsedStmt  *sql.Stmt
-	updateFileNameStmt        *sql.Stmt
-	updateFileThumbnailStmt   *sql.Stmt
+	db                             DBTX
+	tx                             *sql.Tx
+	activateUserEmailStmt          *sql.Stmt
+	checkIfAPIKeyExistsStmt        *sql.Stmt
+	checkIfEmailExistsStmt         *sql.Stmt
+	countPublicFilesStmt           *sql.Stmt
+	countUserFilesStmt             *sql.Stmt
+	createActionTokenStmt          *sql.Stmt
+	createApiKeyStmt               *sql.Stmt
+	createFileStmt                 *sql.Stmt
+	createRefreshTokenStmt         *sql.Stmt
+	createUserStmt                 *sql.Stmt
+	deleteActionTokenStmt          *sql.Stmt
+	deleteApiKeyStmt               *sql.Stmt
+	deleteExpiredAPIKeysStmt       *sql.Stmt
+	deleteExpiredActionTokensStmt  *sql.Stmt
+	deleteExpiredRefreshTokensStmt *sql.Stmt
+	deleteFileStmt                 *sql.Stmt
+	deleteRefreshTokenStmt         *sql.Stmt
+	getActionTokenForUserStmt      *sql.Stmt
+	getApiKeyByPrefixStmt          *sql.Stmt
+	getExpiredDeletedFilesStmt     *sql.Stmt
+	getFileByChecksumStmt          *sql.Stmt
+	getFileInfoStmt                *sql.Stmt
+	getFileOwnerStmt               *sql.Stmt
+	getRefreshTokenStmt            *sql.Stmt
+	getUserByEmailStmt             *sql.Stmt
+	getUserByIDStmt                *sql.Stmt
+	hardDeleteFilesStmt            *sql.Stmt
+	listApiKeysByUserStmt          *sql.Stmt
+	listPublicFilesStmt            *sql.Stmt
+	listUserFilesStmt              *sql.Stmt
+	revokeApiKeyStmt               *sql.Stmt
+	revokeRefreshTokenStmt         *sql.Stmt
+	setFileVisibilityStmt          *sql.Stmt
+	updateApiKeyLastUsedStmt       *sql.Stmt
+	updateFileNameStmt             *sql.Stmt
+	updateFileThumbnailStmt        *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                        tx,
-		tx:                        tx,
-		activateUserEmailStmt:     q.activateUserEmailStmt,
-		checkIfAPIKeyExistsStmt:   q.checkIfAPIKeyExistsStmt,
-		checkIfEmailExistsStmt:    q.checkIfEmailExistsStmt,
-		countPublicFilesStmt:      q.countPublicFilesStmt,
-		countUserFilesStmt:        q.countUserFilesStmt,
-		createActionTokenStmt:     q.createActionTokenStmt,
-		createApiKeyStmt:          q.createApiKeyStmt,
-		createFileStmt:            q.createFileStmt,
-		createRefreshTokenStmt:    q.createRefreshTokenStmt,
-		createUserStmt:            q.createUserStmt,
-		deleteActionTokenStmt:     q.deleteActionTokenStmt,
-		deleteApiKeyStmt:          q.deleteApiKeyStmt,
-		deleteFileStmt:            q.deleteFileStmt,
-		deleteRefreshTokenStmt:    q.deleteRefreshTokenStmt,
-		getActionTokenForUserStmt: q.getActionTokenForUserStmt,
-		getApiKeyByPrefixStmt:     q.getApiKeyByPrefixStmt,
-		getFileByChecksumStmt:     q.getFileByChecksumStmt,
-		getFileInfoStmt:           q.getFileInfoStmt,
-		getFileOwnerStmt:          q.getFileOwnerStmt,
-		getRefreshTokenStmt:       q.getRefreshTokenStmt,
-		getUserByEmailStmt:        q.getUserByEmailStmt,
-		getUserByIDStmt:           q.getUserByIDStmt,
-		listApiKeysByUserStmt:     q.listApiKeysByUserStmt,
-		listPublicFilesStmt:       q.listPublicFilesStmt,
-		listUserFilesStmt:         q.listUserFilesStmt,
-		revokeApiKeyStmt:          q.revokeApiKeyStmt,
-		revokeRefreshTokenStmt:    q.revokeRefreshTokenStmt,
-		setFileVisibilityStmt:     q.setFileVisibilityStmt,
-		updateApiKeyLastUsedStmt:  q.updateApiKeyLastUsedStmt,
-		updateFileNameStmt:        q.updateFileNameStmt,
-		updateFileThumbnailStmt:   q.updateFileThumbnailStmt,
+		db:                             tx,
+		tx:                             tx,
+		activateUserEmailStmt:          q.activateUserEmailStmt,
+		checkIfAPIKeyExistsStmt:        q.checkIfAPIKeyExistsStmt,
+		checkIfEmailExistsStmt:         q.checkIfEmailExistsStmt,
+		countPublicFilesStmt:           q.countPublicFilesStmt,
+		countUserFilesStmt:             q.countUserFilesStmt,
+		createActionTokenStmt:          q.createActionTokenStmt,
+		createApiKeyStmt:               q.createApiKeyStmt,
+		createFileStmt:                 q.createFileStmt,
+		createRefreshTokenStmt:         q.createRefreshTokenStmt,
+		createUserStmt:                 q.createUserStmt,
+		deleteActionTokenStmt:          q.deleteActionTokenStmt,
+		deleteApiKeyStmt:               q.deleteApiKeyStmt,
+		deleteExpiredAPIKeysStmt:       q.deleteExpiredAPIKeysStmt,
+		deleteExpiredActionTokensStmt:  q.deleteExpiredActionTokensStmt,
+		deleteExpiredRefreshTokensStmt: q.deleteExpiredRefreshTokensStmt,
+		deleteFileStmt:                 q.deleteFileStmt,
+		deleteRefreshTokenStmt:         q.deleteRefreshTokenStmt,
+		getActionTokenForUserStmt:      q.getActionTokenForUserStmt,
+		getApiKeyByPrefixStmt:          q.getApiKeyByPrefixStmt,
+		getExpiredDeletedFilesStmt:     q.getExpiredDeletedFilesStmt,
+		getFileByChecksumStmt:          q.getFileByChecksumStmt,
+		getFileInfoStmt:                q.getFileInfoStmt,
+		getFileOwnerStmt:               q.getFileOwnerStmt,
+		getRefreshTokenStmt:            q.getRefreshTokenStmt,
+		getUserByEmailStmt:             q.getUserByEmailStmt,
+		getUserByIDStmt:                q.getUserByIDStmt,
+		hardDeleteFilesStmt:            q.hardDeleteFilesStmt,
+		listApiKeysByUserStmt:          q.listApiKeysByUserStmt,
+		listPublicFilesStmt:            q.listPublicFilesStmt,
+		listUserFilesStmt:              q.listUserFilesStmt,
+		revokeApiKeyStmt:               q.revokeApiKeyStmt,
+		revokeRefreshTokenStmt:         q.revokeRefreshTokenStmt,
+		setFileVisibilityStmt:          q.setFileVisibilityStmt,
+		updateApiKeyLastUsedStmt:       q.updateApiKeyLastUsedStmt,
+		updateFileNameStmt:             q.updateFileNameStmt,
+		updateFileThumbnailStmt:        q.updateFileThumbnailStmt,
 	}
 }

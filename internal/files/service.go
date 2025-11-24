@@ -285,7 +285,7 @@ func (s *FileService) UpdateFileName(ctx context.Context, fileID uuid.UUID, file
 
 // DeleteFile performs a soft delete
 func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID, version int32) error {
-	delTime := sql.NullTime{Time: time.Now().Add(24 * 30 * time.Hour), Valid: true}
+	delTime := sql.NullTime{Time: time.Now().Add(30 * 24 * time.Hour), Valid: true}
 
 	err := s.db.DeleteFile(ctx, database.DeleteFileParams{
 		DeletedAt: delTime,

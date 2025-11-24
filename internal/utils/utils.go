@@ -88,10 +88,11 @@ func SetUpFileStorage(logger *slog.Logger) filestore.FileStorage {
 	return fileStore
 }
 
-// CleanUpUserFiles deletes a list of files from storage.
-func CleanUpUserFiles(fileStore filestore.FileStorage, logger *slog.Logger, paths []string) {
+// CleanUpFiles deletes a list of files from storage.
+func CleanUpFiles(fileStore filestore.FileStorage, logger *slog.Logger, paths []string) {
 	if len(paths) == 0 {
-		logger.Info("User has no files on the system")
+		logger.Info("no files on the system")
+		return
 	}
 
 	for _, deletePath := range paths {
