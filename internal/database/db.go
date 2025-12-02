@@ -27,6 +27,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.activateUserEmailStmt, err = db.PrepareContext(ctx, activateUserEmail); err != nil {
 		return nil, fmt.Errorf("error preparing query ActivateUserEmail: %w", err)
 	}
+	if q.changePasswordStmt, err = db.PrepareContext(ctx, changePassword); err != nil {
+		return nil, fmt.Errorf("error preparing query ChangePassword: %w", err)
+	}
 	if q.checkIfAPIKeyExistsStmt, err = db.PrepareContext(ctx, checkIfAPIKeyExists); err != nil {
 		return nil, fmt.Errorf("error preparing query CheckIfAPIKeyExists: %w", err)
 	}
@@ -131,6 +134,11 @@ func (q *Queries) Close() error {
 	if q.activateUserEmailStmt != nil {
 		if cerr := q.activateUserEmailStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing activateUserEmailStmt: %w", cerr)
+		}
+	}
+	if q.changePasswordStmt != nil {
+		if cerr := q.changePasswordStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing changePasswordStmt: %w", cerr)
 		}
 	}
 	if q.checkIfAPIKeyExistsStmt != nil {
@@ -333,6 +341,7 @@ type Queries struct {
 	db                         DBTX
 	tx                         *sql.Tx
 	activateUserEmailStmt      *sql.Stmt
+	changePasswordStmt         *sql.Stmt
 	checkIfAPIKeyExistsStmt    *sql.Stmt
 	checkIfEmailExistsStmt     *sql.Stmt
 	countPublicFilesStmt       *sql.Stmt
@@ -372,6 +381,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                         tx,
 		tx:                         tx,
 		activateUserEmailStmt:      q.activateUserEmailStmt,
+		changePasswordStmt:         q.changePasswordStmt,
 		checkIfAPIKeyExistsStmt:    q.checkIfAPIKeyExistsStmt,
 		checkIfEmailExistsStmt:     q.checkIfEmailExistsStmt,
 		countPublicFilesStmt:       q.countPublicFilesStmt,

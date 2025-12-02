@@ -58,7 +58,7 @@ func (s *UserService) ActivateUser(ctx context.Context, userID uuid.UUID, tokenP
 		case errors.Is(err, sql.ErrNoRows):
 			return "", false, utils.ErrEditConflict
 		default:
-			return "", false, nil
+			return "", false, err
 		}
 	}
 

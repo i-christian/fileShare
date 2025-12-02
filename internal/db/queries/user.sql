@@ -29,6 +29,14 @@ where user_id = $1
     and version = $2
     returning is_verified;
 
+-- name: ChangePassword :exec
+update users
+    set
+        password_hash = $1,
+        version = version + 1
+where user_id = $1
+    and version = $2;
+
 -- name: CheckIfEmailExists :one
 select
     count(email)

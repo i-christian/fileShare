@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/utils"
 	"github.com/i-christian/fileShare/internal/utils/security"
+	"github.com/i-christian/fileShare/internal/validator"
 )
 
 type AuthService struct {
@@ -232,6 +234,63 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 	}
 
 	accessToken, err := s.generateAccessToken(user.Email, user.FirstName, user.LastName, user.UserID, string(user.Role), user.IsVerified)
+	if err != nil {
+		return "", err
+	}
 
 	return accessToken, nil
+}
+
+func (s *AuthService) SendPasswordResetLink(ctx context.Context, userID uuid.UUID) (resetToken string, err error) {
+	resetToken, hashByte := security.GenerateStringAndHash()
+
+	err = s.queries.CreateActionToken(ctx, database.CreateActionTokenParams{
+		UserID:    userID,
+		Purpose:   database.TokenPurposePasswordReset,
+		TokenHash: hashByte,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return resetToken, nil
+}
+
+func (s *AuthService) VerifyPasswordReset(ctx context.Context, userID uuid.UUID, newPassword string, resetToken string, v *validator.Validator) (status bool, err error) {
+	tokenHash := sha256.Sum256([]byte(resetToken))
+
+	user, err := s.queries.GetActionTokenForUser(ctx, database.GetActionTokenForUserParams{
+		TokenHash: tokenHash[:],
+		Purpose:   database.TokenPurposePasswordReset,
+		UserID:    userID,
+		ExpiresAt: time.Now(),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			v.AddError("token", "invalid or expired reset token")
+			return false, utils.ErrRecordNotFound
+		default:
+			return false, err
+		}
+	}
+
+	passwordHash, err := security.HashPassword(newPassword)
+	if err != nil {
+		return false, err
+	}
+
+	err = s.queries.ChangePassword(ctx, database.ChangePasswordParams{
+		PasswordHash: passwordHash,
+		Version:      user.Version,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, utils.ErrEditConflict
+		}
+		return false, err
+	}
+
+	return true, nil
 }

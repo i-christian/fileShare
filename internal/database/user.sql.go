@@ -34,6 +34,25 @@ func (q *Queries) ActivateUserEmail(ctx context.Context, arg ActivateUserEmailPa
 	return is_verified, err
 }
 
+const changePassword = `-- name: ChangePassword :exec
+update users
+    set
+        password_hash = $1,
+        version = version + 1
+where user_id = $1
+    and version = $2
+`
+
+type ChangePasswordParams struct {
+	PasswordHash string `json:"-"`
+	Version      int32  `json:"version"`
+}
+
+func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
+	_, err := q.exec(ctx, q.changePasswordStmt, changePassword, arg.PasswordHash, arg.Version)
+	return err
+}
+
 const checkIfEmailExists = `-- name: CheckIfEmailExists :one
 select
     count(email)
