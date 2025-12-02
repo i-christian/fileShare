@@ -241,20 +241,25 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 	return accessToken, nil
 }
 
-func (s *AuthService) SendPasswordResetLink(ctx context.Context, userID uuid.UUID) (resetToken string, err error) {
+func (s *AuthService) SendPasswordResetLink(ctx context.Context, email string) (userID uuid.UUID, firstName, lastName, resetToken string, err error) {
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return uuid.UUID{}, "", "", "", err
+	}
+
 	resetToken, hashByte := security.GenerateStringAndHash()
 
 	err = s.queries.CreateActionToken(ctx, database.CreateActionTokenParams{
-		UserID:    userID,
+		UserID:    user.UserID,
 		Purpose:   database.TokenPurposePasswordReset,
 		TokenHash: hashByte,
 		ExpiresAt: time.Now().Add(15 * time.Minute),
 	})
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, "", "", "", err
 	}
 
-	return resetToken, nil
+	return user.UserID, user.FirstName, user.LastName, resetToken, nil
 }
 
 func (s *AuthService) VerifyPasswordReset(ctx context.Context, userID uuid.UUID, newPassword string, resetToken string, v *validator.Validator) (status bool, err error) {
@@ -283,6 +288,7 @@ func (s *AuthService) VerifyPasswordReset(ctx context.Context, userID uuid.UUID,
 
 	err = s.queries.ChangePassword(ctx, database.ChangePasswordParams{
 		PasswordHash: passwordHash,
+		UserID:       userID,
 		Version:      user.Version,
 	})
 	if err != nil {
@@ -290,6 +296,14 @@ func (s *AuthService) VerifyPasswordReset(ctx context.Context, userID uuid.UUID,
 			return false, utils.ErrEditConflict
 		}
 		return false, err
+	}
+
+	err = s.queries.DeleteActionToken(ctx, database.DeleteActionTokenParams{
+		TokenHash: tokenHash[:],
+		UserID:    userID,
+	})
+	if err != nil {
+		return false, utils.ErrUnexpectedError
 	}
 
 	return true, nil

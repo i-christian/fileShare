@@ -32,3 +32,14 @@ func ValidateTokenPlainText(v *Validator, tokenPlainText string) {
 	v.Check(tokenPlainText != "", "token", "must be provided")
 	v.Check(len(tokenPlainText) == 26, "token", "must be 26 bytes long")
 }
+
+func ValidateEmail(v *Validator, email string) {
+	v.Check(VerifyEmail(email), "email", "a valid value must be provided")
+}
+
+func ValidateResetPassword(v *Validator, token, password string) {
+	v.Check(token != "", "token", "must be provided")
+	v.Check(len(token) == 26, "token", "must be provided")
+	v.Check(password != "", "password", "must be provided")
+	v.Check(len(password) > 8, "password", "must be atleast 8 bytes long")
+}

@@ -42,7 +42,7 @@ func (h *UserHandler) MyProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request) {
 	userFromContext, ok := security.GetUserFromContext(r)
-	if !ok || userFromContext.IsAnonymous() {
+	if !ok {
 		utils.UnauthorisedResponse(w, utils.ErrAuthRequired.Error())
 		return
 	}
@@ -97,5 +97,8 @@ func (h *UserHandler) ActivateUserHandler(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.userService.logger, "failed to send json response", err)
+	}
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 	}
 }

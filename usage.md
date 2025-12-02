@@ -72,7 +72,7 @@ export ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFsaWNlQG
 export REFRESH_TOKEN="7e7ec54e-d4f5-437f-9753-c58457cca384"
 ```
 
----
+-----
 
 ### Verify user email
 ```bash
@@ -98,7 +98,45 @@ curl -X PUT http://localhost:8080/api/v1/user/activated \
 }
 ```
 
----
+-----
+### 🔑 Password Reset Flow
+
+## 1️⃣ Request Password Reset Link
+
+This triggers the email containing the token and your User ID.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/password/recover \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alice@example.com"
+  }'
+```
+**Response:**
+```
+{
+  "message": "Check your email for a reset link"
+}
+```
+## 2️⃣ Reset the Password 
+Use the `token` and `user_id` received in the email to set a new password.
+```bash
+curl -X PUT http://localhost:8080/api/v1/auth/password/reset \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "BIZUUZIFQWOQDRL2TV7PFALLAP",
+    "user_id": "019a5ac0-e9a0-7645-91d7-4cab346fef34",
+    "password": "newSuperSecretPassword123!"
+  }'
+```
+**Response:**
+```
+{
+  "message": "Password successfully changed"
+} 
+```
+
+-----
 
 ## 3️⃣ Access a protected endpoint using the access token
 

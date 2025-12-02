@@ -34,8 +34,8 @@ update users
     set
         password_hash = $1,
         version = version + 1
-where user_id = $1
-    and version = $2;
+where user_id = $2
+    and version = $3;
 
 -- name: CheckIfEmailExists :one
 select

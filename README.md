@@ -66,23 +66,25 @@ flowchart LR
 
 ## 🧩 Core API Endpoints
 
-| Method   | Endpoint                      | Description                       | Auth       |
-| -------- | ----------------------------- | --------------------------------- | ---------- |
-| `GET`    | `/api/v1/healthcheck`         | Check the application status      | ❌         |
-| `POST`   | `/api/v1/auth/signup`         | Register a new user               | ❌         |
-| `POST`   | `/api/v1/auth/login`          | Login and get JWT tokens          | ❌         |
-| `POST`   | `/api/v1/auth/refresh`        | Refresh JWT token                 | ✅         |
-| `PUT`    | `/api/v1/user/activated`      | Verify email                      | ✅         |
-| `GET`    | `/api/v1/user/me`             | Get current user profile          | ✅         |
-| `POST`   | `/api/v1/user/api-keys`       | Create an API Key                 | ✅         |
-| `POST`   | `/api/v1/files/upload`        | Upload new file (supports chunks) | ✅         |
-| `GET`    | `/api/v1/files`               | List public files                 | ❌         |
-| `GET`    | `/api/v1/files/me`            | List user files                   | ✅         |
-| `GET`    | `/api/v1/files/{id}`          | Get file metadata                 | ✅         |
-| `GET`    | `/api/v1/files/{id}/download` | Download file                     | ❌         |
-| `DELETE` | `/api/v1/files/{id}`          | Delete file                       | ✅         |
-| `PUT`    | `/api/v1/files/{id}/visible`  | Change file visibility            | ✅         |
-| `PUT`    | `/api/v1/files/{id}/edit`     | Change filename                   | ✅         |
+| Method   | Endpoint                       | Description                       | Auth       |
+| -------- | ------------------------------ | --------------------------------- | ---------- |
+| `GET`    | `/api/v1/healthcheck`          | Check the application status      | ❌         |
+| `POST`   | `/api/v1/auth/signup`          | Register a new user               | ❌         |
+| `POST`   | `/api/v1/auth/login`           | Login and get JWT tokens          | ❌         |
+| `POST`   | `/api/v1/auth/password/recover`| Send password reset email         | ❌         |
+| `PUT`    | `/api/v1/auth/password/reset`  | Set new password                  | ❌         |
+| `POST`   | `/api/v1/auth/refresh`         | Refresh JWT token                 | ✅         |
+| `PUT`    | `/api/v1/user/activated`       | Verify email                      | ✅         |
+| `GET`    | `/api/v1/user/me`              | Get current user profile          | ✅         |
+| `POST`   | `/api/v1/user/api-keys`        | Create an API Key                 | ✅         |
+| `POST`   | `/api/v1/files/upload`         | Upload new file (supports chunks) | ✅         |
+| `GET`    | `/api/v1/files`                | List public files                 | ❌         |
+| `GET`    | `/api/v1/files/me`             | List user files                   | ✅         |
+| `GET`    | `/api/v1/files/{id}`           | Get file metadata                 | ✅         |
+| `GET`    | `/api/v1/files/{id}/download`  | Download file                     | ❌         |
+| `DELETE` | `/api/v1/files/{id}`           | Delete file                       | ✅         |
+| `PUT`    | `/api/v1/files/{id}/visible`   | Change file visibility            | ✅         |
+| `PUT`    | `/api/v1/files/{id}/edit`      | Change filename                   | ✅         |
 
 ---
 

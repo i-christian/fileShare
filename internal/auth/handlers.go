@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/utils"
@@ -233,5 +234,112 @@ func (h *AuthHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 		utils.WriteServerError(h.logger, "failed to encode json response", err)
+	}
+}
+
+func (h *AuthHandler) SendPasswordResetLink(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email string `json:"email"`
+	}
+
+	err := utils.ReadJSON(w, r, &input)
+	if err != nil {
+		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	v := validator.New()
+	if validator.ValidateEmail(v, input.Email); !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+	}
+
+	userID, firstName, lastName, resetLink, err := h.authService.SendPasswordResetLink(r.Context(), input.Email)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to send reset link", err)
+		return
+	}
+
+	data := map[string]any{
+		"AppName":    utils.GetEnvOrFile("PROJECT_NAME"),
+		"FirstName":  firstName,
+		"LastName":   lastName,
+		"Email":      input.Email,
+		"UserID":     userID.String(),
+		"ResetToken": resetLink,
+		"Year":       time.Now().Year(),
+	}
+	payload := &worker.EmailPayload{
+		Recipient:    input.Email,
+		UserID:       userID,
+		TemplateFile: "reset_password.tmpl",
+		Data:         data,
+	}
+	opts := []asynq.Option{
+		asynq.Queue("critical"),
+		asynq.MaxRetry(5),
+	}
+
+	err = h.distributor.DistributeSendEmail(context.Background(), payload, opts...)
+	if err != nil {
+		utils.WriteServerError(h.logger, "failed to queue welcome email", err)
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "Check your email for a reset link"}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+	}
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Token       string `json:"token"`
+		UserID      string `json:"user_id"`
+		NewPassword string `json:"password"`
+	}
+
+	err := utils.ReadJSON(w, r, &input)
+	if err != nil {
+		utils.BadRequestResponse(w, err)
+		return
+	}
+
+	parsedUserID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		utils.FailedValidationResponse(w, map[string]string{"user_id": "a valid value must be provided"})
+		return
+	}
+
+	v := validator.New()
+	validator.ValidateResetPassword(v, input.Token, input.NewPassword)
+	if !v.Valid() {
+		utils.FailedValidationResponse(w, v.Errors)
+		return
+	}
+
+	status, err := h.authService.VerifyPasswordReset(r.Context(), parsedUserID, input.NewPassword, input.Token, v)
+	if err != nil {
+		switch {
+		case errors.Is(err, utils.ErrRecordNotFound):
+			utils.FailedValidationResponse(w, v.Errors)
+		case errors.Is(err, utils.ErrEditConflict):
+			utils.EditConflictResponse(w)
+		default:
+			utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+			utils.WriteServerError(h.logger, "failed to reset password", err)
+		}
+		return
+	}
+
+	if !status {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
+		utils.WriteServerError(h.logger, "failed to change password", err)
+
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "Password successfully changed"}, nil)
+	if err != nil {
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 	}
 }

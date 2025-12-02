@@ -126,7 +126,7 @@ func (h *FileHandler) ListPublicFiles(w http.ResponseWriter, r *http.Request) {
 		"files":    files,
 	}, nil)
 	if err != nil {
-		utils.ServerErrorResponse(w, "server error")
+		utils.ServerErrorResponse(w, utils.ErrUnexpectedError.Error())
 	}
 }
 

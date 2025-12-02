@@ -50,6 +50,8 @@ func RegisterRoutes(config *RoutesConfig, aH *auth.AuthHandler, authService *aut
 			r.Post("/signup", aH.Signup)
 			r.Post("/login", aH.LoginWithRefresh)
 			r.Post("/refresh", aH.Refresh)
+			r.Post("/password/recover", aH.SendPasswordResetLink)
+			r.Put("/password/reset", aH.ResetPassword)
 		})
 
 		r.Route("/user", func(r chi.Router) {

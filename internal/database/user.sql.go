@@ -39,17 +39,18 @@ update users
     set
         password_hash = $1,
         version = version + 1
-where user_id = $1
-    and version = $2
+where user_id = $2
+    and version = $3
 `
 
 type ChangePasswordParams struct {
-	PasswordHash string `json:"-"`
-	Version      int32  `json:"version"`
+	PasswordHash string    `json:"-"`
+	UserID       uuid.UUID `json:"user_id"`
+	Version      int32     `json:"version"`
 }
 
 func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
-	_, err := q.exec(ctx, q.changePasswordStmt, changePassword, arg.PasswordHash, arg.Version)
+	_, err := q.exec(ctx, q.changePasswordStmt, changePassword, arg.PasswordHash, arg.UserID, arg.Version)
 	return err
 }
 
