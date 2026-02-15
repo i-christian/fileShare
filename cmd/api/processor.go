@@ -91,7 +91,7 @@ func (p *RedisTaskProcessor) ProcessTaskGenerateThumbnail(ctx context.Context, t
 func (p *RedisTaskProcessor) ProcessTaskSendEmail(ctx context.Context, task *asynq.Task) error {
 	var payload worker.EmailPayload
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", asynq.SkipRetry)
+		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
 	err := p.mailer.Send(payload.Recipient, payload.TemplateFile, payload.Data)
