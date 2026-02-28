@@ -19,6 +19,7 @@ import (
 	"github.com/i-christian/fileShare/internal/database"
 	"github.com/i-christian/fileShare/internal/db"
 	"github.com/i-christian/fileShare/internal/files"
+	"github.com/i-christian/fileShare/internal/filestore"
 	"github.com/i-christian/fileShare/internal/mailer"
 	"github.com/i-christian/fileShare/internal/public"
 	"github.com/i-christian/fileShare/internal/router"
@@ -39,7 +40,7 @@ func (app *application) serve(dbConn *sql.DB) error {
 		return fmt.Errorf("failed to setup mail service: %w", err)
 	}
 
-	fileStorage := utils.SetUpFileStorage(app.logger)
+	fileStorage := filestore.SetUpFileStorage(app.logger)
 	psqlService := database.New(dbConn)
 	redisOpt := asynq.RedisClientOpt{
 		Addr: utils.GetEnvOrFile("REDIS_ADDR"),

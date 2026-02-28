@@ -49,14 +49,15 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 	hasher := sha256.New()
 	tee := io.TeeReader(fileStream, hasher)
 
-	fileSize, err := s.store.Save(tee, storageKey)
+	fCtx := context.Background()
+	fileSize, err := s.store.Save(fCtx, tee, storageKey)
 	if err != nil {
 		s.logger.Error("failed to save file to storage", "key", storageKey, "error", err)
-		_ = s.store.Delete(storageKey)
+		_, _, _ = s.store.Delete(fCtx, []string{storageKey})
 		return database.CreateFileRow{}, fmt.Errorf("storage error")
 	}
 	if fileSize > maxUploadSize {
-		_ = s.store.Delete(storageKey)
+		_, _, _ = s.store.Delete(fCtx, []string{storageKey})
 		return database.CreateFileRow{}, fmt.Errorf("file size is too large")
 	}
 
@@ -72,7 +73,7 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 	})
 
 	if existingFile.Count > 0 {
-		_ = s.store.Delete(storageKey)
+		_, _, _ = s.store.Delete(fCtx, []string{storageKey})
 		return database.CreateFileRow{}, utils.ErrDuplicateUpload
 	}
 
@@ -87,7 +88,7 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 
 	fileRec, err := s.db.CreateFile(ctx, params)
 	if err != nil {
-		_ = s.store.Delete(storageKey)
+		_, _, _ = s.store.Delete(fCtx, []string{storageKey})
 		return database.CreateFileRow{}, fmt.Errorf("database error: %w", err)
 	}
 
@@ -114,7 +115,10 @@ func (s *FileService) UploadFile(userID uuid.UUID, fileStream io.Reader, content
 
 // GenerateThumbnail creates a thumbnail for an image file
 func (s *FileService) GenerateThumbnail(fileID uuid.UUID, storageKey string) error {
-	originalFile, err := s.store.Get(storageKey)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	originalFile, err := s.store.Get(ctx, storageKey)
 	if err != nil {
 		return err
 	}
@@ -134,20 +138,17 @@ func (s *FileService) GenerateThumbnail(fileID uuid.UUID, storageKey string) err
 	}
 
 	thumbKey := "thumbnails/" + uuid.New().String() + ".jpg"
-	_, err = s.store.Save(buf, thumbKey)
+	_, err = s.store.Save(ctx, buf, thumbKey)
 	if err != nil {
 		return err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	err = s.db.UpdateFileThumbnail(ctx, database.UpdateFileThumbnailParams{
 		ThumbnailKey: sql.NullString{String: thumbKey, Valid: true},
 		FileID:       fileID,
 	})
 	if err != nil {
-		_ = s.store.Delete(thumbKey)
+		_, _, _ = s.store.Delete(ctx, []string{thumbKey})
 		return err
 	}
 
@@ -186,7 +187,10 @@ func (s *FileService) DownloadFile(ctx context.Context, fileID, userID uuid.UUID
 		return nil, database.GetFileInfoRow{}, utils.ErrNotPermitted
 	}
 
-	stream, err := s.store.Get(fileInfo.StorageKey)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stream, err := s.store.Get(ctx, fileInfo.StorageKey)
 	if err != nil {
 		utils.WriteServerError(s.logger, fmt.Sprintf("file found in database but missing in storage key=%s", fileInfo.StorageKey), err)
 
@@ -325,7 +329,7 @@ func (s *FileService) CleanupExpiredSoftDeleted(ctx context.Context, limit int32
 		}
 	}
 
-	utils.CleanUpFiles(s.store, s.logger, storagePaths)
+	s.store.Delete(context.Background(), storagePaths)
 
 	if err := s.db.HardDeleteFiles(ctx, fileIDs); err != nil {
 		return 0, fmt.Errorf("failed to hard delete file records: %w", err)
