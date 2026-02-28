@@ -13,7 +13,9 @@ var (
 	ErrEditConflict    = errors.New("edit confict")
 	ErrAuthRequired    = errors.New("authentication is required to access this resource")
 	ErrDuplicateUpload = errors.New("file already exists")
-	ErrNotPermitted    = errors.New("you do not have the permission to access this resource")
+	ErrFilesNotFound   = errors.New("files do not exist")
+	ErrInvalidFile     = errors.New("invalid file")
+	ErrNotPermitted = errors.New("you do not have the permission to access this resource")
 )
 
 // WriteErrorJSON returns an error in json format to the client

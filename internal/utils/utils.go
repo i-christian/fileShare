@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/i-christian/fileShare/internal/filestore"
 )
 
 // ValidateEnvVars checks if required env vars are all set during server startup
@@ -51,56 +48,7 @@ func GetEnvOrFile(key string) string {
 		return strings.TrimSpace(string(data))
 	}
 
-	return os.Getenv(key)
-}
-
-// SetUpFileStorage setups file storage for the application
-func SetUpFileStorage(logger *slog.Logger) filestore.FileStorage {
-	uploadsDir := GetEnvOrFile("UPLOADS_DIR")
-	if uploadsDir == "" {
-		logger.Error("UPLOADS_DIR environment variable is not set")
-		os.Exit(1)
-	}
-
-	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
-		logger.Error("Failed to create base uploads directory", "path", uploadsDir, "error", err)
-		os.Exit(1)
-	}
-
-	subDirsToCreate := []string{
-		"users",
-	}
-
-	for _, subDir := range subDirsToCreate {
-		fullPath := filepath.Join(uploadsDir, subDir)
-		if err := os.MkdirAll(fullPath, 0o755); err != nil {
-			logger.Error("Failed to create subdirectory within uploads", "path", fullPath, "error", err)
-			os.Exit(1)
-		}
-	}
-
-	fileStore, err := filestore.NewDiskStorage(uploadsDir)
-	if err != nil {
-		logger.Error("Failed to initialize disk storage", "error", err)
-		os.Exit(1)
-	}
-
-	return fileStore
-}
-
-// CleanUpFiles deletes a list of files from storage.
-func CleanUpFiles(fileStore filestore.FileStorage, logger *slog.Logger, paths []string) {
-	if len(paths) == 0 {
-		logger.Info("no files on the system")
-		return
-	}
-
-	for _, deletePath := range paths {
-		if err := fileStore.Delete(deletePath); err != nil {
-			logger.Error("failed to delete disk file", "path", deletePath, "error", err)
-			continue
-		}
-	}
+	return strings.TrimSpace(os.Getenv(key))
 }
 
 // ReadInt is a helper for query params
